@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { createClient } from "@supabase/supabase-js";
 import * as dotenv from "dotenv";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 
 dotenv.config(); // Mengaktifkan pembacaan file .env
 
@@ -12,6 +13,8 @@ const supabase = createClient(
   process.env.SUPABASE_URL || "",
   process.env.SUPABASE_ANON_KEY || "",
 );
+
+app.use("*", cors());
 
 app.get("/", async (c) => {
   // Mencoba test tarik data dari tabel "stores"
