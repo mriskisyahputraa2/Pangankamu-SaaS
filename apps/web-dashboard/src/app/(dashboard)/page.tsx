@@ -6,11 +6,15 @@ export default function DashboardPage() {
   const [store, setStore] = useState<any>(null);
 
   useEffect(() => {
-    getStoreData().then((res) => {
-      if (res.status === "success") {
-        setStore(res.data[0]); // Ambil toko pertama (Toko Rizki jaya)
-      }
-    });
+    console.log("Memulai fetching data..."); // Tambahkan ini
+    getStoreData()
+      .then((res) => {
+        console.log("Data diterima:", res); // Tambahkan ini
+        if (res.status === "success") {
+          setStore(res.data[0]);
+        }
+      })
+      .catch((err) => console.error("Fetch gagal:", err)); // Tambahkan ini
   }, []);
 
   return (
