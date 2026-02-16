@@ -1,7 +1,8 @@
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"; // URL API
 
+// Inisialisasi Axios ke URL API
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -9,6 +10,7 @@ export const api = axios.create({
   },
 });
 
+// Mendapatkan data toko dari URL API
 export const getStores = async () => {
   try {
     const response = await api.get("/");

@@ -11,7 +11,7 @@ export default function DashboardLayout({
       <main className="flex-1 flex flex-col min-w-0 bg-white">
         {/* Padding atas berubah dari md:pt-0 menjadi lg:pt-0 */}
         <div className="pt-14 lg:pt-0">
-          <div className="p-6 lg:p-10 max-w-7xl">{children}</div>
+          <div className="p-6 lg:p-10 max-w-full">{children}</div>
         </div>
       </main>
     </div>
