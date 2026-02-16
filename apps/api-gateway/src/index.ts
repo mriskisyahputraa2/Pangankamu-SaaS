@@ -1,52 +1,18 @@
 import { serve } from "@hono/node-server";
-import { createClient } from "@supabase/supabase-js";
-import * as dotenv from "dotenv";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-
-dotenv.config(); // Mengaktifkan pembacaan file .env
+import productRoutes from "./routes/product.js";
 
 const app = new Hono();
 
-// Inisialisasi Supabase Client
-const supabase = createClient(
-  process.env.SUPABASE_URL || "",
-  process.env.SUPABASE_ANON_KEY || "",
-);
-
 app.use("*", cors());
 
-app.get("/", async (c) => {
-  // Mencoba test tarik data dari tabel "stores"
-  const { data, error } = await supabase.from("stores").select("*");
+// Daftarkan rute modular
+app.route("/products", productRoutes);
 
-  if (error) {
-    return c.json(
-      {
-        status: "error",
-        message: "gagal terhubung ke supabase",
-        detail: error.message,
-      },
-      500,
-    );
-  }
+// Rute tes koneksi tetap di sini tidak apa-apa
+app.get("/", (c) => c.json({ message: "API PanganKamu is Online!" }));
 
-  return c.json(
-    {
-      status: "success",
-      message: "berhasil terhubung ke supabase",
-      data: data,
-    },
-    200,
-  );
+serve({ fetch: app.fetch, port: 3000 }, (info) => {
+  console.log(`Server is running on http://localhost:${info.port}`);
 });
-
-serve(
-  {
-    fetch: app.fetch,
-    port: 3000,
-  },
-  (info) => {
-    console.log(`Server is running on http://localhost:${info.port}`);
-  },
-);
