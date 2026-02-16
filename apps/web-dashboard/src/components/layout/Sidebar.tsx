@@ -23,6 +23,7 @@ import { useState } from "react";
 // Konfigurasi Menu Navigasi
 const menuItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Kategori", href: "/categories", icon: ShoppingBasket },
   { name: "Produk", href: "/products", icon: ShoppingBasket },
   { name: "Pesanan", href: "/orders", icon: ClipboardList },
   { name: "Analisis AI", href: "/analytics", icon: BarChart3 },

@@ -1,8 +1,8 @@
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"; // URL API
+// Pastikan mengambil URL dari env, jika tidak ada baru gunakan localhost:3000
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
-// Inisialisasi Axios ke URL API
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -10,13 +10,17 @@ export const api = axios.create({
   },
 });
 
-// Mendapatkan data toko dari URL API
-export const getStores = async () => {
-  try {
-    const response = await api.get("/");
-    return response.data;
-  } catch (error) {
-    console.error("Gagal mengambil data toko:", error);
-    throw error;
-  }
-};
+// Tambahkan interceptor untuk membantu debugging di console browser
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Jika terjadi Network Error, kita bisa tahu URL mana yang dipanggil
+    console.error("AXIOS ERROR DETAILS:", {
+      message: error.message,
+      url: error.config?.url,
+      method: error.config?.method,
+      baseURL: error.config?.baseURL,
+    });
+    return Promise.reject(error);
+  },
+);
