@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -36,23 +36,29 @@ import {
   Trash2,
   Plus,
 } from "lucide-react";
+
+// --- Services ---
 import {
   getProducts,
   createProduct,
   updateProduct,
   deleteProduct,
 } from "@/services/product-service";
+import { getCategories } from "@/services/category-service";
+import { toast } from "sonner";
 
 export default function ProductsPage() {
   // --- State Data & Loading ---
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [totalData, setTotalData] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // --- State Kontrol (Pagination & Search) ---
+  // --- State Kontrol (Pagination, Search, Filter) ---
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState("10");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
   // --- State Form (Tambah/Edit) ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -64,27 +70,41 @@ export default function ProductsPage() {
     stock: "",
   });
 
-  // Fungsi Fetch Utama
-  const fetchProducts = async () => {
+  // --- 1. Fetch Daftar Kategori (Untuk Dropdown) ---
+  const fetchCategories = async () => {
+    try {
+      const res = await getCategories(1, 100, "");
+      if (res.status === "success") {
+        setCategories(res.data);
+      }
+    } catch (err) {
+      console.error("Gagal mengambil kategori:", err);
+    }
+  };
+
+  // --- 2. Fetch Daftar Produk ---
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
+      // Catatan: Pastikan product-service kamu sudah mendukung search & filter jika ingin sinkron
       const res = await getProducts(currentPage, parseInt(rowsPerPage));
       if (res.status === "success") {
         setProducts(res.data);
         setTotalData(res.total);
       }
-    } catch (err) {
-      console.error("Fetch Error:", err);
+    } catch (err: any) {
+      toast.error("Gagal sinkronisasi data produk");
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, rowsPerPage]);
 
   useEffect(() => {
     fetchProducts();
-  }, [currentPage, rowsPerPage]);
+    fetchCategories();
+  }, [fetchProducts]);
 
-  // Handler Simpan Data (Tambah & Update)
+  // --- 3. Handler Simpan (Create & Update) ---
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -94,33 +114,35 @@ export default function ProductsPage() {
         stock: parseInt(formData.stock),
       };
 
+      let res;
       if (editingId) {
-        await updateProduct(editingId, payload);
+        res = await updateProduct(editingId, payload);
       } else {
-        await createProduct(payload);
+        res = await createProduct(payload);
       }
 
+      toast.success(res.message || "Data berhasil disimpan");
       setIsModalOpen(false);
       resetForm();
       fetchProducts();
-    } catch (err) {
-      console.error("Save Error:", err);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Terjadi kesalahan");
     }
   };
 
-  // Handler Hapus Data
+  // --- 4. Handler Hapus ---
   const handleDelete = async (id: number) => {
-    if (confirm("Yakin ingin menghapus produk ini dari Toko Rizki jaya?")) {
+    if (confirm("Yakin ingin menghapus produk ini?")) {
       try {
-        await deleteProduct(id);
+        const res = await deleteProduct(id);
+        toast.success(res.message || "Produk dihapus");
         fetchProducts();
-      } catch (err) {
-        console.error("Delete Error:", err);
+      } catch (err: any) {
+        toast.error("Gagal menghapus produk");
       }
     }
   };
 
-  // Persiapan Edit
   const openEditModal = (item: any) => {
     setEditingId(item.id);
     setFormData({
@@ -189,15 +211,23 @@ export default function ProductsPage() {
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                   Kategori
                 </label>
-                <Input
-                  placeholder="Unggas / Daging Merah"
+                <Select
                   value={formData.category}
-                  onChange={(e) =>
-                    setFormData({ ...formData, category: e.target.value })
+                  onValueChange={(val) =>
+                    setFormData({ ...formData, category: val })
                   }
-                  className="rounded-xl border-slate-100 h-11"
-                  required
-                />
+                >
+                  <SelectTrigger className="rounded-xl border-slate-100 h-11">
+                    <SelectValue placeholder="Pilih Kategori" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.name}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -206,7 +236,6 @@ export default function ProductsPage() {
                   </label>
                   <Input
                     type="number"
-                    placeholder="0"
                     value={formData.price}
                     onChange={(e) =>
                       setFormData({ ...formData, price: e.target.value })
@@ -221,7 +250,6 @@ export default function ProductsPage() {
                   </label>
                   <Input
                     type="number"
-                    placeholder="0"
                     value={formData.stock}
                     onChange={(e) =>
                       setFormData({ ...formData, stock: e.target.value })
@@ -258,15 +286,18 @@ export default function ProductsPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Select defaultValue="all">
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
           <SelectTrigger className="w-full md:w-[200px] border-slate-200 rounded-xl h-11 bg-white">
             <Filter size={18} className="mr-2 text-slate-400" />
             <SelectValue placeholder="Kategori" />
           </SelectTrigger>
           <SelectContent className="rounded-xl">
             <SelectItem value="all">Semua Kategori</SelectItem>
-            <SelectItem value="unggas">Unggas</SelectItem>
-            <SelectItem value="daging">Daging Merah</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.id} value={cat.name.toLowerCase()}>
+                {cat.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -393,7 +424,6 @@ export default function ProductsPage() {
                 <SelectItem value="5">5</SelectItem>
                 <SelectItem value="10">10</SelectItem>
                 <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
               </SelectContent>
             </Select>
             <span className="hidden sm:inline">dari {totalData} produk</span>
@@ -407,7 +437,7 @@ export default function ProductsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-lg border-slate-200 h-9 w-9 p-0"
+                className="rounded-lg h-9 w-9 p-0"
                 disabled={currentPage === 1 || loading}
                 onClick={() => setCurrentPage((p) => p - 1)}
               >
@@ -416,7 +446,7 @@ export default function ProductsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-lg border-slate-200 h-9 w-9 p-0"
+                className="rounded-lg h-9 w-9 p-0"
                 disabled={
                   currentPage === totalPages || totalPages === 0 || loading
                 }

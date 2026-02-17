@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   AlertDialog,
+  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -12,18 +13,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Trash2, Loader2, AlertTriangle } from "lucide-react";
-import { deleteCategory } from "@/services/category-service";
+import { deleteProduct } from "@/services/product-service";
 import { toast } from "sonner";
 
-export function DeleteCategoryDialog({
-  categoryId,
-  categoryName,
-  storeId,
+export function DeleteProductDialog({
+  productId,
+  productName,
   onSuccess,
 }: {
-  categoryId: string;
-  categoryName: string;
-  storeId: string;
+  productId: number;
+  productName: string;
   onSuccess: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,13 +31,12 @@ export function DeleteCategoryDialog({
   const handleDelete = async () => {
     setLoading(true);
     try {
-      // Mengirim store_id untuk keamanan multi-tenancy
-      await deleteCategory(categoryId, storeId);
-      toast.success("Kategori dihapus (Aktivitas dicatat di logs)");
+      await deleteProduct(productId);
+      toast.success("Produk berhasil dihapus");
       onSuccess();
       setIsOpen(false);
-    } catch (err: any) {
-      toast.error("Gagal menghapus kategori");
+    } catch (err) {
+      toast.error("Gagal menghapus produk");
     } finally {
       setLoading(false);
     }
@@ -60,13 +58,13 @@ export function DeleteCategoryDialog({
             <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
               <AlertTriangle size={32} className="text-red-600" />
             </div>
-            <AlertDialogTitle className="text-xl font-bold text-slate-900">
-              Hapus Kategori?
+            <AlertDialogTitle className="text-xl font-bold">
+              Hapus Produk?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-500">
-              Menghapus kategori{" "}
-              <span className="font-bold text-slate-900">"{categoryName}"</span>{" "}
-              akan dicatat di log sistem Pangankamu. Tindakan ini permanen.
+            <AlertDialogDescription className="text-slate-500 italic">
+              Yakin ingin menghapus{" "}
+              <span className="font-bold text-slate-900">"{productName}"</span>?
+              Stok tidak akan bisa dikembalikan lagi.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-6 flex gap-2">
