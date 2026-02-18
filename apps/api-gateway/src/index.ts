@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import productRoutes from "./routes/product.js";
 import categoryRoute from "./routes/category.js";
 import { logger } from "hono/logger";
+import auth from "./routes/auth.js";
 
 const app = new Hono();
 
@@ -32,6 +33,7 @@ app.onError((err, c) => {
 app.get("/", (c) => c.json({ message: "API PanganKamu is Online!" }));
 
 // list list route
+app.route("/auth", auth); // route auth
 app.route("/categories", categoryRoute); // route categoriesx
 app.route("/products", productRoutes); // route products
 
