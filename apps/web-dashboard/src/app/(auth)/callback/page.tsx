@@ -1,49 +1,44 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 export default function AuthCallbackPage() {
-  const router = useRouter();
   const [status, setStatus] = useState("Menghubungkan akun...");
 
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Supabase secara otomatis akan membaca token dari URL hash (#access_token=...)
-        // dan menyimpannya ke dalam cookie atau local storage browser
+        // Menukar kode dari URL Google menjadi sesi aktif
         const { data, error } = await supabase.auth.getSession();
 
         if (error) throw error;
 
-        if (data.session) {
-          setStatus("Login Berhasil! Mengarahkan ke Dashboard...");
-          // Beri sedikit jeda agar user bisa melihat status sukses
+        if (data?.session) {
+          setStatus("Login Berhasil! Menyinkronkan...");
+          // Jeda sebentar agar cookie benar-benar tertanam di browser
           setTimeout(() => {
-            router.push("/");
-            router.refresh();
-          }, 1500);
+            window.location.replace("/");
+          }, 800);
         } else {
           setStatus("Sesi tidak ditemukan. Silakan login kembali.");
         }
       } catch (err) {
-        console.error("Error during callback:", err);
+        console.error("Callback Error:", err);
         setStatus("Gagal memproses login.");
       }
     };
 
     handleAuthCallback();
-  }, [router]);
+  }, []);
 
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
+    <div className="flex h-screen w-full flex-col items-center justify-center bg-white">
       <div className="flex flex-col items-center gap-4">
-        {/* Kamu bisa tambahkan spinner loading di sini */}
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-        <h2 className="text-xl font-semibold">{status}</h2>
-        <p className="text-sm text-muted-foreground text-center">
-          PanganKU sedang menyiapkan dashboard untukmu.
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"></div>
+        <h2 className="text-xl font-bold text-slate-900">{status}</h2>
+        <p className="text-sm text-slate-400 text-center px-4">
+          Sedang menyiapkan dashboard PanganKU untukmu.
         </p>
       </div>
     </div>
