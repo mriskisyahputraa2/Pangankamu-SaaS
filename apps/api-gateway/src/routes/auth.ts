@@ -98,6 +98,7 @@ auth.post("/signup", async (c) => {
   }
 });
 
+/* API LOGIN */
 auth.post("/login", async (c) => {
   try {
     // data permintan untuk login yaitu: email dan password
@@ -144,6 +145,33 @@ auth.post("/login", async (c) => {
       { status: "error", message: "Terjadi gangguan pada server" },
       500,
     );
+  }
+});
+
+/* ROUTE LOGIN GOOGLE */
+auth.get("/login-google", async (c) => {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: "http://localhost:3001/callback",
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
+    });
+
+    if (error) {
+      console.error("OAuth Error:", error);
+      return c.json({ status: "error", message: error.message }, 500);
+    }
+
+    console.log("OAuth URL generated:", data.url);
+    return c.redirect(data.url);
+  } catch (err) {
+    console.error("OAuth Exception:", err);
+    return c.json({ status: "error", message: "OAuth failed" }, 500);
   }
 });
 

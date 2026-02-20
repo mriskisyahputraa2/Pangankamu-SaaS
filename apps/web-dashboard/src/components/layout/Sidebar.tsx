@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
+  Shapes, // Ikon baru untuk Kategori
   ShoppingBasket,
   ClipboardList,
   BarChart3,
   Settings,
   Store,
   Menu,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -19,19 +21,34 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 // Konfigurasi Menu Navigasi
 const menuItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Kategori", href: "/categories", icon: ShoppingBasket },
+  { name: "Kategori", href: "/categories", icon: Shapes }, // Ikon Shapes lebih cocok untuk pengelompokan
   { name: "Produk", href: "/products", icon: ShoppingBasket },
   { name: "Pesanan", href: "/orders", icon: ClipboardList },
   { name: "Analisis AI", href: "/analytics", icon: BarChart3 },
 ];
 
-// Komponen Isi Sidebar (Dipakai di Desktop & Mobile)
+// Komponen Isi Sidebar
 const SidebarContent = ({ setOpen }: { setOpen?: (open: boolean) => void }) => {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      // Redirect ke login dan refresh untuk memicu middleware
+      router.push("/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Gagal logout:", error);
+    }
+  };
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -63,7 +80,6 @@ const SidebarContent = ({ setOpen }: { setOpen?: (open: boolean) => void }) => {
             >
               <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
               {item.name}
-              {/* Indikator Garis Aktif */}
               {isActive && (
                 <div className="absolute left-0 w-1 h-4 bg-emerald-600 rounded-r-full" />
               )}
@@ -73,14 +89,24 @@ const SidebarContent = ({ setOpen }: { setOpen?: (open: boolean) => void }) => {
       </nav>
 
       {/* Bagian Bawah */}
-      <div className="p-4 border-t border-slate-100">
+      <div className="p-4 border-t border-slate-100 space-y-1">
         <Link
           href="/settings"
+          onClick={() => setOpen?.(false)}
           className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors"
         >
           <Settings size={18} />
           <span>Pengaturan</span>
         </Link>
+
+        {/* Tombol Logout */}
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-rose-500 hover:bg-rose-50 rounded-md transition-all active:scale-95"
+        >
+          <LogOut size={18} />
+          <span>Keluar</span>
+        </button>
       </div>
     </div>
   );
@@ -91,12 +117,12 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Desktop Sidebar (Hanya tampil di layar LG / 1024px ke atas) */}
+      {/* Desktop Sidebar */}
       <aside className="hidden lg:flex h-screen w-60 flex-col border-r border-slate-100 bg-white sticky top-0">
         <SidebarContent />
       </aside>
 
-      {/* Mobile & Tablet Header (Tampil di layar di bawah LG, termasuk iPad) */}
+      {/* Mobile & Tablet Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-slate-100 flex items-center px-4 z-50">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
