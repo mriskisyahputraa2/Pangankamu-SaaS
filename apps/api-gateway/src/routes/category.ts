@@ -1,134 +1,109 @@
 import { Hono } from "hono";
-import { supabase } from "../config/supabase.js";
+import { createClient } from "@supabase/supabase-js";
+import { requireAuth } from "../middleware/authMiddleware.js";
+import { sendResponse } from "../utils/response.js";
 
-const category = new Hono();
+const categoryRoute = new Hono();
 
-// 1. [READ] - Get All Categories (Filtered by Store ID)
-category.get("/", async (c) => {
-  // Sesuai dokumen: Isolasi data antar toko menggunakan store_id
-  const store_id = c.req.query("store_id");
-  const page = parseInt(c.req.query("page") || "1");
-  const limit = parseInt(c.req.query("limit") || "10");
+//  supabase
+// tanda (!) diujung menandakan proses tidak dijalankan jika tidak ada key supabase url & anon key
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_ANON_KEY!,
+);
+
+// Get all API categories dan mengecek apakah udah login atau belom dengan fungsi "requireAuth"
+categoryRoute.get("/", requireAuth, async (c) => {
+  const storeId = c.req.query("store_id");
   const search = c.req.query("search") || "";
+  const page = parseInt(c.req.query("page") || "");
+  const limit = parseInt(c.req.query("limit") || "");
 
-  if (!store_id) {
-    return c.json(
-      { status: "error", message: "store_id diperlukan untuk keamanan SaaS" },
-      400,
-    );
-  }
+  if (!storeId)
+    return c.json(sendResponse("error", "Store ID wajib diisi"), 400);
 
-  const offset = (page - 1) * limit;
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
-  // Query difilter berdasarkan store_id sesuai poin 3A dokumen
   let query = supabase
     .from("categories")
     .select("*", { count: "exact" })
-    .eq("store_id", store_id);
+    .eq("store_id", storeId)
+    .range(from, to);
 
-  if (search) {
-    query = query.ilike("name", `%${search}%`);
-  }
+  if (search) query = query.ilike("name", `%${search}`);
+  const { data, error, count } = await query;
 
-  const { data, error, count } = await query
-    .order("name", { ascending: true })
-    .range(offset, offset + limit - 1);
+  if (error) return c.json(sendResponse("error", error.message), 500);
+
+  return c.json(
+    sendResponse("success", "Kategori berhasil diambil", data, {
+      total_data: count,
+      current_page: page,
+      row_per_page: limit,
+      total_pages: Math.ceil((count || 0) / limit),
+    }),
+    200,
+  );
+});
+
+// Create categories
+categoryRoute.post("/", requireAuth, async (c) => {
+  const { name, store_id } = await c.req.json();
+
+  if (!name)
+    return c.json(
+      sendResponse("error", "Nama kategori tidak boleh kosong"),
+      400,
+    );
+
+  const { data, error } = await supabase
+    .from("categories")
+    .insert([{ name, store_id }])
+    .select()
+    .single();
 
   if (error) {
-    return c.json({ status: "error", message: error.message }, 500);
+    const message = error.message.includes("unique_category_per_store")
+      ? "Nama kategori ini sudah ada di toko Anda"
+      : error.message;
+
+    return c.json(sendResponse("error", message), 500);
   }
-
-  return c.json({
-    status: "success",
-    data,
-    total: count,
-    page,
-    limit,
-  });
+  return c.json(sendResponse("success", "Kategori berhasil dibuat", data), 200);
 });
 
-// 2. [CREATE] - Create Category with Audit Log
-category.post("/", async (c) => {
-  const body = await c.req.json();
-
-  // Insert kategori dengan menyertakan store_id (Tenant Isolation)
-  const { data, error } = await supabase
-    .from("categories")
-    .insert([
-      {
-        name: body.name,
-        store_id: body.store_id, // Wajib ada sesuai skema database SaaS
-      },
-    ])
-    .select();
-
-  if (error) return c.json({ status: "error", message: error.message }, 500);
-
-  // Logging ke system_logs sesuai poin 5.6 dokumen perencanaan
-  await supabase.from("system_logs").insert([
-    {
-      store_id: body.store_id,
-      action: "CREATE_CATEGORY",
-      severity: "info",
-      message: `User menambahkan kategori baru: ${body.name}`,
-    },
-  ]);
-
-  return c.json({ status: "success", data: data[0] }, 201);
-});
-
-// 3. [UPDATE] - Edit Category
-category.put("/:id", async (c) => {
+// Update categories
+categoryRoute.put("/:id", requireAuth, async (c) => {
   const id = c.req.param("id");
-  const body = await c.req.json();
+  const { name } = await c.req.json();
+
+  if (!name)
+    return c.json(sendResponse("error", "Nama Kategori baru wajib diisi"), 400);
 
   const { data, error } = await supabase
     .from("categories")
-    .update({ name: body.name })
+    .update({ name })
     .eq("id", id)
-    // Keamanan tambahan: pastikan kategori milik store yang benar
-    .eq("store_id", body.store_id)
-    .select();
+    .select()
+    .single();
 
-  if (error) return c.json({ status: "error", message: error.message }, 500);
+  if (error) return c.json(sendResponse("error", error.message), 500);
 
-  // Audit Log Update
-  await supabase.from("system_logs").insert([
-    {
-      store_id: body.store_id,
-      action: "UPDATE_CATEGORY",
-      severity: "info",
-      message: `Update kategori ID ${id} menjadi ${body.name}`,
-    },
-  ]);
-
-  return c.json({ status: "success", data: data[0] });
+  return c.json(
+    sendResponse("success", "Kategori berhasil diperbaharui", data),
+    200,
+  );
 });
 
-// 4. [DELETE] - Delete Category
-category.delete("/:id", async (c) => {
+// Delete categories
+categoryRoute.delete("/:id", requireAuth, async (c) => {
   const id = c.req.param("id");
-  const store_id = c.req.query("store_id"); // Dikirim via query param
+  const { error } = await supabase.from("categories").delete().eq("id", id);
 
-  const { error } = await supabase
-    .from("categories")
-    .delete()
-    .eq("id", id)
-    .eq("store_id", store_id);
+  if (error) return c.json(sendResponse("error", error.message), 500);
 
-  if (error) return c.json({ status: "error", message: error.message }, 500);
-
-  // Audit Log Delete
-  await supabase.from("system_logs").insert([
-    {
-      store_id: store_id,
-      action: "DELETE_CATEGORY",
-      severity: "warning",
-      message: `Kategori dengan ID ${id} telah dihapus`,
-    },
-  ]);
-
-  return c.json({ status: "success", message: "Kategori berhasil dihapus" });
+  return c.json(sendResponse("success", "Kategori berhasil dihapus"), 200);
 });
 
-export default category;
+export default categoryRoute;
