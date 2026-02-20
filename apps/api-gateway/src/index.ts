@@ -1,42 +1,68 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { logger } from "hono/logger";
+import type { User } from "@supabase/supabase-js";
+
+// Import Routes
 import productRoutes from "./routes/product.js";
 import categoryRoute from "./routes/category.js";
-import { logger } from "hono/logger";
 import auth from "./routes/auth.js";
 
-const app = new Hono();
+// Import Middleware
+import { requireAuth, requireRole } from "./middleware/authMiddleware.js";
 
-app.use("*", cors()); // untuk keamanan server siapa saja yng boleh akses data dari API
-app.use("*", logger()); // mencatat setiap permintaan (GET, POST, PUT, DELETE) untuk memantau aktivitas server seperti bug, dll
+// Definisikan tipe untuk Context Hono agar Type-Safe
+type Variables = {
+  user: User;
+};
 
-// Menangkap semya bug yang tidak terduga diseluruh route
+const app = new Hono<{ Variables: Variables }>();
+
+// Middleware Global
+app.use("*", cors());
+app.use("*", logger());
+
+// Error Handler
 app.onError((err, c) => {
-  //mendapaktan pesan bug di terminal
-  console.log(`BUG DETECTED PATH: ${c.req.path}`);
-  console.log(`Message: ${err.message}`);
-  console.log(`Stack: ${err.stack}`);
-
-  // Kirim pesan aman untuk user agar tidak bingung
+  console.error(`BUG DETECTED PATH: ${c.req.path}`);
+  console.error(`Message: ${err.message}`);
   return c.json(
-    {
-      status: "error",
-      message:
-        "Terjadi kesalahan pada server. Kami akan segera memperbaikinya.",
-    },
+    { status: "error", message: "Terjadi kesalahan pada server." },
     500,
   );
 });
 
-// Rute tes koneksi tetap di sini tidak apa-apa
+// Health Check
 app.get("/", (c) => c.json({ message: "API PanganKamu is Online!" }));
 
-// list list route
-app.route("/auth", auth); // route auth
-app.route("/categories", categoryRoute); // route categoriesx
-app.route("/products", productRoutes); // route products
+// Cek Profil: Bisa diakses semua user yang login
+app.get("/auth/profile", requireAuth, (c) => {
+  const user = c.get("user");
+  return c.json({
+    status: "success",
+    data: {
+      email: user.email,
+      fullName: user.user_metadata.full_name,
+      role: user.user_metadata.role,
+    },
+  });
+});
 
+// Dashboard: Hanya untuk Super Admin (Riski)
+app.get("/admin/dashboard", requireAuth, requireRole(["super_admin"]), (c) => {
+  return c.json({
+    status: "success",
+    message: "Halo Riski! Selamat datang di dashboard utama PanganKU.",
+  });
+});
+
+// --- LIST ROUTES ---
+app.route("/auth", auth);
+app.route("/categories", categoryRoute);
+app.route("/products", productRoutes);
+
+// Start Server
 serve({ fetch: app.fetch, port: 3000 }, (info) => {
   console.log(`Server is running on http://localhost:${info.port}`);
 });
