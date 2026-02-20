@@ -2,44 +2,59 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { Loader2, CheckCircle2 } from "lucide-react";
 
 export default function AuthCallbackPage() {
-  const [status, setStatus] = useState("Menghubungkan akun...");
+  const [status, setStatus] = useState("Menyiapkan Sesi...");
+  const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Menukar kode dari URL Google menjadi sesi aktif
         const { data, error } = await supabase.auth.getSession();
-
         if (error) throw error;
 
         if (data?.session) {
-          setStatus("Login Berhasil! Menyinkronkan...");
-          // Jeda sebentar agar cookie benar-benar tertanam di browser
+          setIsSuccess(true);
+          setStatus("Login Berhasil!");
           setTimeout(() => {
             window.location.replace("/");
-          }, 800);
+          }, 1200);
         } else {
-          setStatus("Sesi tidak ditemukan. Silakan login kembali.");
+          setStatus("Sesi tidak ditemukan...");
         }
       } catch (err) {
-        console.error("Callback Error:", err);
         setStatus("Gagal memproses login.");
       }
     };
-
     handleAuthCallback();
   }, []);
 
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center bg-white">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent"></div>
-        <h2 className="text-xl font-bold text-slate-900">{status}</h2>
-        <p className="text-sm text-slate-400 text-center px-4">
-          Sedang menyiapkan dashboard PanganKU untukmu.
-        </p>
+    <div className="h-screen w-full flex items-center justify-center bg-white">
+      <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-500">
+        <div className="relative">
+          {isSuccess ? (
+            <div className="bg-emerald-100 p-4 rounded-full text-emerald-600 animate-bounce">
+              <CheckCircle2 size={48} />
+            </div>
+          ) : (
+            <div className="p-4">
+              <Loader2 size={48} className="text-emerald-600 animate-spin" />
+            </div>
+          )}
+        </div>
+
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+            {status}
+          </h2>
+          <p className="text-slate-500 mt-2 font-medium">
+            {isSuccess
+              ? "Mengarahkan ke dashboard PanganKU..."
+              : "Harap tunggu sebentar..."}
+          </p>
+        </div>
       </div>
     </div>
   );
