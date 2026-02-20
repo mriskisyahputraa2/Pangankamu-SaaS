@@ -1,31 +1,192 @@
 "use client";
 
+import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { LayoutGrid, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { toast, Toaster } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      const errorMessage =
+        error.message === "Invalid login credentials"
+          ? "Email atau kata sandi salah."
+          : error.message;
+      toast.error(errorMessage);
+      setLoading(false);
+    } else {
+      // Mengarahkan ke callback agar efek loading transisi tetap terlihat sesuai rencana
+      window.location.replace("/callback");
+    }
+  };
+
   const handleGoogleLogin = async () => {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        // Pastikan URL redirect ini terdaftar di dashboard Supabase
         redirectTo: `${window.location.origin}/callback`,
       },
     });
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-slate-50">
-      <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-sm border border-slate-100">
-        <h1 className="text-2xl font-bold text-center text-slate-900 mb-6">
-          Masuk ke PanganKU
-        </h1>
-        <button
-          onClick={handleGoogleLogin}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors font-medium text-slate-700"
-        >
-          {/* Kamu bisa pasang SVG logo Google di sini */}
-          <span>Masuk dengan Google</span>
-        </button>
+    <div className="font-jakarta antialiased bg-white">
+      <Toaster position="top-center" richColors />
+
+      <div className="grid lg:grid-cols-5 md:grid-cols-2 items-center h-full min-h-screen">
+        {/* Sisi Kiri: Visual Section - Hijau Emerald Bold */}
+        <div className="max-md:order-1 lg:col-span-3 md:h-screen w-full bg-emerald-600 flex items-center justify-center p-8 relative overflow-hidden">
+          {/* Efek Dekorasi Radial agar background tidak terlihat datar */}
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_20%,_rgba(255,255,255,0.15)_0%,_transparent_50%)]" />
+          <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(circle_at_70%_80%,_rgba(0,0,0,0.1)_0%,_transparent_50%)]" />
+
+          <div className="relative z-10 w-full flex flex-col items-center">
+            <img
+              src="https://readymadeui.com/signin-image.webp"
+              className="lg:w-4/5 w-full h-auto object-contain block mx-auto drop-shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
+              alt="PanganKU Illustration"
+            />
+          </div>
+        </div>
+
+        {/* Sisi Kanan: Form Section - Putih Bersih */}
+        <div className="lg:col-span-2 w-full p-8 max-w-lg mx-auto bg-white font-jakarta">
+          <form onSubmit={handleEmailLogin}>
+            <div className="mb-10 text-center lg:text-left">
+              <div className="flex items-center gap-2 mb-4 justify-center lg:justify-start">
+                <div className="p-1.5 bg-emerald-600 rounded-lg">
+                  <LayoutGrid size={20} className="text-white" />
+                </div>
+                <span className="text-xl font-bold text-slate-900 tracking-tight">
+                  PanganKU
+                </span>
+              </div>
+              <h1 className="text-slate-900 text-3xl font-extrabold tracking-tight">
+                Selamat Datang
+              </h1>
+              <p className="text-[15px] mt-2 text-slate-500 font-medium">
+                Masuk untuk mengelola stok ruko digital Anda.
+              </p>
+            </div>
+
+            <div className="space-y-5">
+              {/* Email Input */}
+              <div>
+                <label className="text-slate-700 text-sm font-bold mb-2 block uppercase tracking-wider">
+                  Email Bisnis
+                </label>
+                <div className="relative flex items-center">
+                  <Mail className="absolute left-4 text-slate-400" size={18} />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 focus:bg-white pl-11 pr-4 py-4 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
+                    placeholder="nama@toko.com"
+                  />
+                </div>
+              </div>
+
+              {/* Password Input dengan Toggle Mata */}
+              <div>
+                <div className="flex justify-between items-center mb-2 px-1">
+                  <label className="text-slate-700 text-sm font-bold uppercase tracking-wider">
+                    Kata Sandi
+                  </label>
+                  <button
+                    type="button"
+                    className="text-emerald-600 font-bold text-xs hover:underline"
+                  >
+                    Lupa Password?
+                  </button>
+                </div>
+                <div className="relative flex items-center">
+                  <Lock className="absolute left-4 text-slate-400" size={18} />
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 focus:bg-white pl-11 pr-12 py-4 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 text-slate-400 hover:text-emerald-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Tombol Masuk */}
+            <div className="mt-10">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-4 px-4 text-sm font-bold tracking-wide rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                {loading ? (
+                  <Loader2 className="animate-spin text-white" size={20} />
+                ) : (
+                  "Masuk ke Dashboard"
+                )}
+              </button>
+            </div>
+
+            {/* Pembatas Atau */}
+            <div className="my-8 flex items-center gap-4">
+              <hr className="w-full border-slate-100" />
+              <p className="text-[10px] text-slate-300 font-black uppercase tracking-[0.2em]">
+                Atau
+              </p>
+              <hr className="w-full border-slate-100" />
+            </div>
+
+            {/* Tombol Google */}
+            <button
+              onClick={handleGoogleLogin}
+              type="button"
+              className="w-full flex items-center justify-center gap-3 py-3.5 px-6 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all active:scale-[0.98]"
+            >
+              <img
+                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                className="w-5 h-5"
+                alt="Google"
+              />
+              Lanjutkan dengan Google
+            </button>
+
+            {/* Navigasi ke Sign Up */}
+            <p className="mt-10 text-center text-sm text-slate-400 font-bold tracking-tight">
+              Belum punya akun?
+              <button
+                type="button"
+                onClick={() => router.push("/signup")} // Navigasi manual
+                className="text-emerald-600 font-black hover:underline ml-1 cursor-pointer"
+              >
+                Daftar Toko
+              </button>
+            </p>
+          </form>
+        </div>
       </div>
     </div>
   );
