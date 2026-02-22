@@ -11,6 +11,7 @@ import auth from "./routes/auth.js";
 
 // Import Middleware
 import { requireAuth, requireRole } from "./middleware/authMiddleware.js";
+import { sendResponse } from "./utils/response.js";
 
 // Definisikan tipe untuk Context Hono agar Type-Safe
 type Variables = {
@@ -25,10 +26,13 @@ app.use("*", logger());
 
 // Error Handler
 app.onError((err, c) => {
-  console.error(`BUG DETECTED PATH: ${c.req.path}`);
-  console.error(`Message: ${err.message}`);
+  console.log(`Server Error: ${c.req.path}: ${err.message}`);
+
   return c.json(
-    { status: "error", message: "Terjadi kesalahan pada server." },
+    sendResponse(
+      "error",
+      "Maaf terjadi gangguan pada server. Silahkan coba lagi",
+    ),
     500,
   );
 });

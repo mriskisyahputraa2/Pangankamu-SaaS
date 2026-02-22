@@ -5,7 +5,7 @@ import { sendResponse } from "../utils/response.js";
 
 const categoryRoute = new Hono();
 
-//  supabase
+// menghubungkan ke supabase (createClient)
 // tanda (!) diujung menandakan proses tidak dijalankan jika tidak ada key supabase url & anon key
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -16,18 +16,19 @@ const supabase = createClient(
 categoryRoute.get("/", requireAuth, async (c) => {
   const storeId = c.req.query("store_id");
   const search = c.req.query("search") || "";
-  const page = parseInt(c.req.query("page") || "");
-  const limit = parseInt(c.req.query("limit") || "");
+  const page = parseInt(c.req.query("page") || "1"); // default page nya 1
+  const limit = parseInt(c.req.query("limit") || "10"); // default limit nya 10
 
   if (!storeId)
     return c.json(sendResponse("error", "Store ID wajib diisi"), 400);
 
+  // logic, agar database hanya mengambil 10 data pertama
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
   let query = supabase
     .from("categories")
-    .select("*", { count: "exact" })
+    .select("*", { count: "exact" }) // menghitung total seluruh kategori didatabase
     .eq("store_id", storeId)
     .range(from, to);
 
@@ -63,12 +64,14 @@ categoryRoute.post("/", requireAuth, async (c) => {
     .select()
     .single();
 
+  // logic, menangani error duplikasi nama kategori dengan kode postgress supabase: 23505
   if (error) {
-    const message = error.message.includes("unique_category_per_store")
-      ? "Nama kategori ini sudah ada di toko Anda"
-      : error.message;
+    const message =
+      error.code === "23505"
+        ? "Nama kategori ini sudah terdaftar di toko Anda"
+        : error.message;
 
-    return c.json(sendResponse("error", message), 500);
+    return c.json(sendResponse("error", message), 400);
   }
   return c.json(sendResponse("success", "Kategori berhasil dibuat", data), 200);
 });
@@ -88,7 +91,15 @@ categoryRoute.put("/:id", requireAuth, async (c) => {
     .select()
     .single();
 
-  if (error) return c.json(sendResponse("error", error.message), 500);
+  // logic update, ketika menginput nama kategori yang sama
+  if (error) {
+    const message =
+      error.code === "23505"
+        ? "Gagal update! Nama kategori tersebut sudah digunakan"
+        : error.message;
+
+    return c.json(sendResponse("error", message), 400);
+  }
 
   return c.json(
     sendResponse("success", "Kategori berhasil diperbaharui", data),
