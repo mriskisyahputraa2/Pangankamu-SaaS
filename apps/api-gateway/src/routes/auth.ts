@@ -44,7 +44,7 @@ auth.post("/signup", async (c) => {
 
     const userId = authData.user.id;
 
-    // B. Membuat Toko Baru (Table stores)
+    // Membuat Toko Baru (Table stores)
     const { data: storeData, error: storeError } = await supabase
       .from("stores")
       .insert([{ name: store_name, slug: slug, owner_id: userId }])
@@ -60,7 +60,7 @@ auth.post("/signup", async (c) => {
       return c.json(sendResponse("error", "Gagal membuat toko: " + msg), 400);
     }
 
-    // C. Update Metadata User (Role & Store ID)
+    // Update Metadata User (Role & Store ID)
     const { error: updateError } =
       await supabaseAdmin.auth.admin.updateUserById(userId, {
         user_metadata: {
