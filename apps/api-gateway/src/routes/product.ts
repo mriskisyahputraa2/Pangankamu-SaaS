@@ -1,156 +1,167 @@
 import { Hono } from "hono";
-import { supabase } from "../config/supabase.js";
+import { createClient } from "@supabase/supabase-js";
+import { requireAuth } from "../middleware/authMiddleware.js";
+import { sendResponse } from "../utils/response.js";
 
-const product = new Hono();
+const productRoute = new Hono();
 
-// 1. [READ] - Get All Products (Filtered by Store ID)
-product.get("/", async (c) => {
-  const store_id = c.req.query("store_id"); // Wajib untuk isolasi data SaaS
+// inisialisasi supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_ANON_KEY!,
+);
+
+// Get Products
+productRoute.get("/", requireAuth, async (c) => {
+  const storeId = c.req.query("store_id");
+  const search = c.req.query("search") || "";
   const page = parseInt(c.req.query("page") || "1");
   const limit = parseInt(c.req.query("limit") || "10");
-  const search = c.req.query("search") || "";
 
-  if (!store_id) {
-    return c.json(
-      { status: "error", message: "store_id diperlukan untuk keamanan SaaS" },
-      400,
-    );
-  }
+  if (!storeId)
+    return c.json(sendResponse("error", "Store ID wajib diisi"), 400);
 
-  const offset = (page - 1) * limit;
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
 
-  // Query difilter berdasarkan store_id agar data tidak bocor antar tenant [cite: 85]
+  // Melakukan JOIN dengan tabel categories untuk mendapatkan nama kategori
   let query = supabase
     .from("products")
-    .select("*", { count: "exact" })
-    .eq("store_id", store_id);
+    .select("*, categories(name)", { count: "exact" })
+    .eq("store_id", storeId)
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
-  if (search) {
-    query = query.ilike("name", `%${search}%`);
-  }
+  if (search) query = query.ilike("name", `%${search}%`);
 
-  const { data, error, count } = await query
-    .order("name", { ascending: true })
-    .range(offset, offset + limit - 1);
+  const { data, error, count } = await query;
 
-  if (error) {
-    return c.json({ status: "error", message: error.message }, 500);
-  }
+  if (error) return c.json(sendResponse("error", error.message), 500);
 
-  return c.json({
-    status: "success",
-    data,
-    total: count,
-    page,
-    limit,
-  });
+  return c.json(
+    sendResponse("success", "Daftar produk berhasil diambil", data, {
+      total_data: count,
+      current_page: page,
+      total_pages: Math.ceil((count || 0) / limit),
+    }),
+    200,
+  );
 });
 
-// 2. [CREATE] - Add Product with Profit Calculation Support
-product.post("/", async (c) => {
+// Create Products
+productRoute.post("/", requireAuth, async (c) => {
   try {
     const body = await c.req.json();
 
-    // Sesuai skema: memisahkan price_base (modal) dan price_sell (jual) [cite: 51, 52, 86]
+    // MENGAMBIL STORE_ID OTOMATIS DARI URL
+    const store_id = c.req.query("store_id");
+
+    const {
+      name,
+      price_sell,
+      category_id,
+      price_base,
+      stock,
+      unit,
+      image_url,
+    } = body;
+
+    // Validasi data wajib
+    if (!name || !store_id || !price_sell) {
+      return c.json(
+        sendResponse(
+          "error",
+          "Nama, Store ID (di URL), dan Harga Jual wajib tersedia",
+        ),
+        400,
+      );
+    }
+
+    // Memasukkan data ke Database dengan menyisipkan store_id secara otomatis
     const { data, error } = await supabase
       .from("products")
       .insert([
         {
-          name: body.name,
-          store_id: body.store_id,
-          category_id: body.category_id, // UUID relasi kategori
-          price_base: Number(body.price_base), // Untuk hitung profit di masa depan
-          price_sell: Number(body.price_sell),
-          stock: Number(body.stock),
-          unit: body.unit || "pcs",
-          is_active: true,
+          store_id, // Disisipkan otomatis dari URL
+          category_id,
+          name,
+          price_base: price_base || 0,
+          price_sell,
+          stock: stock || 0,
+          unit: unit || "pcs",
+          image_url,
+          is_active: body.is_active ?? true,
         },
       ])
-      .select();
+      .select()
+      .single();
 
-    if (error) return c.json({ status: "error", message: error.message }, 500);
-
-    // Logging ke system_logs (Black Box Pangankamu) [cite: 90]
-    await supabase.from("system_logs").insert([
-      {
-        store_id: body.store_id,
-        action: "CREATE_PRODUCT",
-        severity: "info",
-        message: `Produk baru ditambahkan: ${body.name} dengan stok ${body.stock}`,
-      },
-    ]);
+    if (error) {
+      const message =
+        error.code === "23505"
+          ? "Produk dengan nama ini sudah ada di toko Anda"
+          : error.message;
+      return c.json(sendResponse("error", message), 400);
+    }
 
     return c.json(
-      { status: "success", message: "Produk berhasil disimpan", data: data[0] },
+      sendResponse("success", "Produk PanganKU berhasil ditambahkan", data),
       201,
     );
-  } catch (err: any) {
-    return c.json({ status: "error", message: "Format data tidak valid" }, 400);
+  } catch (error) {
+    return c.json(sendResponse("error", "Terjadi kesalahan pada server"), 500);
   }
 });
 
-// 3. [UPDATE] - Update Product & Stock
-product.put("/:id", async (c) => {
-  const id = c.req.param("id");
-  const body = await c.req.json();
+// Update Products
+productRoute.put("/:id", requireAuth, async (c) => {
+  try {
+    const id = c.req.param("id");
+    const store_id = c.req.query("store_id");
+    const body = await c.req.json();
 
-  const { data, error } = await supabase
-    .from("products")
-    .update({
-      name: body.name,
-      category_id: body.category_id,
-      price_base: Number(body.price_base),
-      price_sell: Number(body.price_sell),
-      stock: Number(body.stock),
-      unit: body.unit,
-      is_active: body.is_active,
-    })
-    .eq("id", id)
-    .eq("store_id", body.store_id) // Pastikan hanya bisa update milik sendiri [cite: 16]
-    .select();
+    if (!store_id) {
+      return c.json(
+        sendResponse("error", "Store ID wajib disertakan di URL"),
+        400,
+      );
+    }
 
-  if (error) return c.json({ status: "error", message: error.message }, 500);
+    // Update data dengan filter ganda: ID Produk DAN Store ID
+    const { data, error } = await supabase
+      .from("products")
+      .update(body)
+      .eq("id", id)
+      .eq("store_id", store_id) // Kunci keamanan Multi-Tenant
+      .select()
+      .single();
 
-  // Audit Log untuk Update
-  await supabase.from("system_logs").insert([
-    {
-      store_id: body.store_id,
-      action: "UPDATE_PRODUCT",
-      severity: "info",
-      message: `Update data produk: ${body.name}`,
-    },
-  ]);
+    if (error) {
+      // Handle jika data tidak ditemukan atau ada duplikasi nama
+      const message =
+        error.code === "PGRST116"
+          ? "Produk tidak ditemukan atau Anda tidak memiliki akses"
+          : error.message;
+      return c.json(sendResponse("error", message), 400);
+    }
 
-  return c.json({ status: "success", data: data[0] });
+    return c.json(
+      sendResponse("success", "Produk PanganKU berhasil diperbarui", data),
+      200,
+    );
+  } catch (error) {
+    return c.json(sendResponse("error", "Terjadi kesalahan pada server"), 500);
+  }
 });
 
-// 4. [DELETE] - Remove Product
-product.delete("/:id", async (c) => {
+// Delete Products
+productRoute.delete("/:id", requireAuth, async (c) => {
   const id = c.req.param("id");
-  const store_id = c.req.query("store_id");
+  const { error } = await supabase.from("products").delete().eq("id", id);
 
-  if (!store_id)
-    return c.json({ status: "error", message: "store_id diperlukan" }, 400);
+  if (error) return c.json(sendResponse("error", error.message), 400);
 
-  const { error } = await supabase
-    .from("products")
-    .delete()
-    .eq("id", id)
-    .eq("store_id", store_id);
-
-  if (error) return c.json({ status: "error", message: error.message }, 500);
-
-  // Audit Log untuk Delete
-  await supabase.from("system_logs").insert([
-    {
-      store_id: store_id,
-      action: "DELETE_PRODUCT",
-      severity: "warning",
-      message: `Produk dengan ID ${id} telah dihapus dari sistem`,
-    },
-  ]);
-
-  return c.json({ status: "success", message: "Produk berhasil dihapus" });
+  return c.json(sendResponse("success", "Produk berhasil dihapus"), 200);
 });
 
-export default product;
+export default productRoute;
