@@ -1,21 +1,19 @@
 import { api } from "@/lib/api";
+import { Category, ApiResponse } from "@/types";
 
 /**
- * SERVICE KATEGORI - PANGANKAMU SAAS (V1.0)
- * Sesuai Dokumen Perencanaan: Manajemen Tenant & Multi-Tenancy
+ * Mengambil Daftar Kategori (Read)
+ * Mengisolasi data antar toko untuk keamanan SaaS
  */
-
-// 1. Ambil Semua Kategori (Berdasarkan Store ID)
-// Sesuai dokumen: Mengisolasi data antar toko untuk keamanan SaaS
 export const getCategories = async (
   storeId: string,
   page: number,
   limit: number,
   search: string = "",
-) => {
+): Promise<ApiResponse<Category[]>> => {
   const response = await api.get(`/categories`, {
     params: {
-      store_id: storeId, // Wajib sesuai poin 3A dokumen
+      store_id: storeId, // Filter wajib Multi-Tenancy
       page,
       limit,
       search,
@@ -24,35 +22,45 @@ export const getCategories = async (
   return response.data;
 };
 
-// 2. Tambah Kategori Baru
-// Mencatat store_id agar kategori tidak muncul di toko lain
+/**
+ * Menambah Kategori Baru (Create)
+ * Mencatat store_id agar kategori tidak muncul di toko lain
+ */
 export const createCategory = async (data: {
   store_id: string;
   name: string;
-}) => {
-  const response = await api.post("/categories", data);
+}): Promise<ApiResponse<Category>> => {
+  const response = await api.post("/categories", data, {
+    params: { store_id: data.store_id }, // Kirim store_id di URL agar backend mudah baca
+  });
   return response.data;
 };
 
-// 3. Update Data Kategori
+/**
+ * Memperbarui Nama Kategori (Update)
+ */
 export const updateCategory = async (
   id: string,
   data: {
     store_id: string;
     name: string;
   },
-) => {
-  const response = await api.put(`/categories/${id}`, data);
+): Promise<ApiResponse<Category>> => {
+  const response = await api.put(`/categories/${id}`, data, {
+    params: { store_id: data.store_id }, // Validasi kepemilikan tenant
+  });
   return response.data;
 };
 
-// 4. Hapus Kategori
-// Mengirim store_id untuk validasi kepemilikan sebelum penghapusan dilakukan
-export const deleteCategory = async (id: string, storeId: string) => {
+/**
+ * Menghapus Kategori (Delete)
+ */
+export const deleteCategory = async (
+  id: string,
+  storeId: string,
+): Promise<ApiResponse<null>> => {
   const response = await api.delete(`/categories/${id}`, {
-    params: {
-      store_id: storeId,
-    },
+    params: { store_id: storeId }, // Pastikan hanya pemilik yang bisa hapus
   });
   return response.data;
 };

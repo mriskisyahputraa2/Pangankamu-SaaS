@@ -26,20 +26,21 @@ import {
   Pencil,
 } from "lucide-react";
 
-// --- Services & Components ---
+// --- Types, Services & Components ---
+import { Category } from "@/types";
 import { getCategories } from "@/services/category-service";
 import { AddCategoryModal } from "@/components/categories/add-category-modal";
 import { EditCategoryModal } from "@/components/categories/edit-category-modal";
-import { toast } from "sonner";
 import { DeleteCategoryDialog } from "@/components/categories/delete-category-modal";
+import { toast } from "sonner";
 
 export default function CategoriesPage() {
-  // --- Tenant ID (Sesuai Dokumen: Multi-Tenancy) ---
-  // Riski, ganti ID ini dengan data dari session login toko kamu nanti
-  const activeStoreId = "92a22151-e69d-4f4c-b666-b8f5ccf33cd9"; // Contoh UUID
+  // --- Dynamic Store ID (Multi-Tenancy) ---
+  // mengambil id dari session login
+  const [activeStoreId, setActiveStoreId] = useState<string>("");
 
   // --- State Data ---
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [totalData, setTotalData] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -50,21 +51,53 @@ export default function CategoriesPage() {
 
   // --- State Modal Edit ---
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<any>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null,
+  );
 
-  // --- Fetch Data (Wajib Mengirim store_id) ---
+  // 1. Ambil Store ID saat halaman dimuat (Poin 3A: Isolasi Data)
+  useEffect(() => {
+    const storedData = localStorage.getItem("user");
+    if (storedData) {
+      try {
+        const parsed = JSON.parse(storedData);
+
+        // Cek apakah data tersimpan di root, atau di dalam .user, atau di .data.user
+        const storeId =
+          parsed.store_id ||
+          parsed.user?.store_id ||
+          parsed.data?.user?.store_id;
+
+        if (storeId) {
+          setActiveStoreId(storeId);
+        } else {
+          console.error("Store ID tidak ditemukan di localStorage");
+          toast.error("Sesi toko tidak valid. Silakan login ulang.");
+        }
+      } catch (e) {
+        console.error("Gagal parse data user:", e);
+      }
+    } else {
+      toast.error("Anda belum login.");
+    }
+  }, []);
+
+  // 2. Fetch Data (Hanya jalan jika activeStoreId sudah terisi)
   const fetchCategories = useCallback(async () => {
+    if (!activeStoreId) return;
+
     setLoading(true);
     try {
       const res = await getCategories(
-        activeStoreId, //
+        activeStoreId,
         currentPage,
         parseInt(rowsPerPage),
         searchTerm,
       );
+
       if (res.status === "success") {
-        setCategories(res.data);
-        setTotalData(res.total);
+        setCategories(res.data); // Sesuai standarisasi backend data
+        setTotalData(res.meta?.total_data || 0); // Sesuai standarisasi backend meta
       }
     } catch (err: any) {
       console.error("Fetch Error:", err);
@@ -81,7 +114,7 @@ export default function CategoriesPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [fetchCategories]);
 
-  const openEditModal = (item: any) => {
+  const openEditModal = (item: Category) => {
     setSelectedCategory(item);
     setIsEditOpen(true);
   };
@@ -101,8 +134,13 @@ export default function CategoriesPage() {
           </p>
         </div>
 
-        {/* Modal Tambah dengan Store ID  */}
-        <AddCategoryModal storeId={activeStoreId} onSuccess={fetchCategories} />
+        {/* Modal Tambah otomatis menggunakan ID toko yang login */}
+        {activeStoreId && (
+          <AddCategoryModal
+            storeId={activeStoreId}
+            onSuccess={fetchCategories}
+          />
+        )}
       </div>
 
       {/* FILTER & SEARCH */}
@@ -136,7 +174,7 @@ export default function CategoriesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {!activeStoreId || loading ? (
                 <TableRow>
                   <TableCell colSpan={3} className="h-72 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
@@ -145,7 +183,7 @@ export default function CategoriesPage() {
                         size={32}
                       />
                       <p className="text-sm font-medium text-slate-400 italic">
-                        Memuat data tenant...{" "}
+                        Menyiapkan dashboard tenant...
                       </p>
                     </div>
                   </TableCell>
@@ -182,7 +220,6 @@ export default function CategoriesPage() {
                           <Pencil size={16} />
                         </Button>
 
-                        {/* Delete Dialog dengan validasi Store ID  */}
                         <DeleteCategoryDialog
                           categoryId={item.id}
                           categoryName={item.name}
@@ -251,7 +288,6 @@ export default function CategoriesPage() {
         </div>
       </div>
 
-      {/* Edit Modal  */}
       <EditCategoryModal
         category={selectedCategory}
         storeId={activeStoreId}
