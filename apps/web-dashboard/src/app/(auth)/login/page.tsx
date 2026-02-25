@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { LayoutGrid, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -12,48 +13,43 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const res = await api.post("/auth/login", { email, password });
 
-    if (error) {
-      const errorMessage =
-        error.message === "Invalid login credentials"
-          ? "Email atau kata sandi salah."
-          : error.message;
-      toast.error(errorMessage);
+      if (res.data.status === "success") {
+        // Simpan sementara ke sessionStorage agar bisa diambil di halaman callback
+        sessionStorage.setItem("pending_auth", JSON.stringify(res.data.data));
+
+        toast.success("Login Berhasil!");
+
+        // Arahkan ke callback agar muncul loading "Menyiapkan Sesi"
+        router.push("/callback");
+      }
+    } catch (error: any) {
+      const msg =
+        error.response?.data?.message || "Email atau kata sandi salah.";
+      toast.error(msg);
+    } finally {
       setLoading(false);
-    } else {
-      // Mengarahkan ke callback agar efek loading transisi tetap terlihat sesuai rencana
-      window.location.replace("/callback");
     }
   };
 
-  const handleGoogleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/callback`,
-      },
-    });
+  const handleGoogleLogin = () => {
+    // Langsung arahkan ke backend Hono untuk OAuth Google
+    window.location.href = "http://localhost:3000/auth/login-google";
   };
 
   return (
     <div className="font-jakarta antialiased bg-white">
       <Toaster position="top-center" richColors />
-
       <div className="grid lg:grid-cols-5 md:grid-cols-2 items-center h-full min-h-screen">
-        {/* Sisi Kiri: Visual Section - Hijau Emerald Bold */}
         <div className="max-md:order-1 lg:col-span-3 md:h-screen w-full bg-emerald-600 flex items-center justify-center p-8 relative overflow-hidden">
-          {/* Efek Dekorasi Radial agar background tidak terlihat datar */}
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_20%,_rgba(255,255,255,0.15)_0%,_transparent_50%)]" />
-          <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(circle_at_70%_80%,_rgba(0,0,0,0.1)_0%,_transparent_50%)]" />
-
           <div className="relative z-10 w-full flex flex-col items-center">
             <img
               src="https://readymadeui.com/signin-image.webp"
@@ -63,7 +59,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Sisi Kanan: Form Section - Putih Bersih */}
         <div className="lg:col-span-2 w-full p-8 max-w-lg mx-auto bg-white font-jakarta">
           <form onSubmit={handleEmailLogin}>
             <div className="mb-10 text-center lg:text-left">
@@ -84,7 +79,6 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-5">
-              {/* Email Input */}
               <div>
                 <label className="text-slate-700 text-sm font-bold mb-2 block uppercase tracking-wider">
                   Email Bisnis
@@ -96,13 +90,12 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 focus:bg-white pl-11 pr-4 py-4 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
+                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 pl-11 pr-4 py-4 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
                     placeholder="nama@toko.com"
                   />
                 </div>
               </div>
 
-              {/* Password Input dengan Toggle Mata */}
               <div>
                 <div className="flex justify-between items-center mb-2 px-1">
                   <label className="text-slate-700 text-sm font-bold uppercase tracking-wider">
@@ -122,7 +115,7 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 focus:bg-white pl-11 pr-12 py-4 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
+                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 pl-11 pr-12 py-4 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
                     placeholder="••••••••"
                   />
                   <button
@@ -136,7 +129,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Tombol Masuk */}
             <div className="mt-10">
               <button
                 type="submit"
@@ -151,7 +143,6 @@ export default function LoginPage() {
               </button>
             </div>
 
-            {/* Pembatas Atau */}
             <div className="my-8 flex items-center gap-4">
               <hr className="w-full border-slate-100" />
               <p className="text-[10px] text-slate-300 font-black uppercase tracking-[0.2em]">
@@ -160,11 +151,10 @@ export default function LoginPage() {
               <hr className="w-full border-slate-100" />
             </div>
 
-            {/* Tombol Google */}
             <button
               onClick={handleGoogleLogin}
               type="button"
-              className="w-full flex items-center justify-center gap-3 py-3.5 px-6 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-3 py-3.5 px-6 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all"
             >
               <img
                 src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -173,18 +163,6 @@ export default function LoginPage() {
               />
               Lanjutkan dengan Google
             </button>
-
-            {/* Navigasi ke Sign Up */}
-            <p className="mt-10 text-center text-sm text-slate-400 font-bold tracking-tight">
-              Belum punya akun?
-              <button
-                type="button"
-                onClick={() => router.push("/signup")} // Navigasi manual
-                className="text-emerald-600 font-black hover:underline ml-1 cursor-pointer"
-              >
-                Daftar Toko
-              </button>
-            </p>
           </form>
         </div>
       </div>
