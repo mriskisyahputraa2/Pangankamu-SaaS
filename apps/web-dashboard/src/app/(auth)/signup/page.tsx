@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 import {
   LayoutGrid,
   Mail,
@@ -14,11 +13,12 @@ import {
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import Link from "next/link";
+import { api } from "@/lib/api"; // Memastikan menggunakan konfigurasi API kita
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState(""); // Input Nama Lengkap
+  const [fullName, setFullName] = useState("");
   const [storeName, setStoreName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,55 +28,38 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      // 1. Registrasi ke Supabase Auth dengan data tambahan (Nama Lengkap)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // 1. Panggil API Backend Hono (auth/signup)
+      // Mengirimkan data sesuai kontrak di auth.ts: email, password, full_name, store_name, slug
+      const res = await api.post("/auth/signup", {
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
-        },
+        full_name: fullName,
+        store_name: storeName,
+        slug: storeName.toLowerCase().replace(/\s+/g, "-"),
       });
 
-      if (authError) throw authError;
-
-      if (authData.user) {
-        // 2. Simpan data Toko ke tabel 'stores' (Sesuai Poin 3A Dokumen Perencanaan)
-        const { error: storeError } = await supabase.from("stores").insert([
-          {
-            name: storeName,
-            owner_id: authData.user.id,
-            slug: storeName.toLowerCase().replace(/\s+/g, "-"),
-          },
-        ]);
-
-        if (storeError) throw storeError;
-
-        toast.success("Akun Berhasil Dibuat!", {
-          description: "Silakan cek email untuk verifikasi.",
+      if (res.data.status === "success") {
+        toast.success("Akun & Toko Berhasil Dibuat!", {
+          description: "Silakan login untuk mulai mengelola stok.",
         });
 
+        // 2. Redirect ke halaman login setelah 2 detik
         setTimeout(() => {
           window.location.replace("/login");
         }, 2000);
       }
     } catch (error: any) {
-      toast.error("Gagal Mendaftar", {
-        description: error.message,
-      });
+      // Menangkap pesan error dari backend (misal: "Slug sudah digunakan")
+      const msg = error.response?.data?.message || "Gagal Mendaftar";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/callback`,
-      },
-    });
+  const handleGoogleSignUp = () => {
+    // Mengarahkan ke route Google OAuth di Backend Hono
+    window.location.href = "http://localhost:3000/auth/login-google";
   };
 
   return (
@@ -84,7 +67,7 @@ export default function SignUpPage() {
       <Toaster position="top-center" richColors />
 
       <div className="grid lg:grid-cols-5 md:grid-cols-2 items-center h-full min-h-screen">
-        {/* Sisi Kiri: Branding Section */}
+        {/* Sisi Kiri: Visual Branding */}
         <div className="max-md:order-1 lg:col-span-3 md:h-screen w-full bg-emerald-600 flex items-center justify-center p-8 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_20%,_rgba(255,255,255,0.15)_0%,_transparent_50%)]" />
           <div className="relative z-10 w-full text-center">
@@ -96,7 +79,7 @@ export default function SignUpPage() {
           </div>
         </div>
 
-        {/* Sisi Kanan: Form Section */}
+        {/* Sisi Kanan: Form Pendaftaran */}
         <div className="lg:col-span-2 w-full p-8 max-w-lg mx-auto bg-white font-jakarta">
           <form onSubmit={handleSignUp}>
             <div className="mb-8 text-center lg:text-left">
@@ -117,7 +100,6 @@ export default function SignUpPage() {
             </div>
 
             <div className="space-y-4">
-              {/* Nama Lengkap */}
               <div>
                 <label className="text-slate-700 text-xs font-bold mb-2 block uppercase tracking-wider">
                   Nama Lengkap
@@ -135,7 +117,6 @@ export default function SignUpPage() {
                 </div>
               </div>
 
-              {/* Nama Toko */}
               <div>
                 <label className="text-slate-700 text-xs font-bold mb-2 block uppercase tracking-wider">
                   Nama Toko
@@ -153,7 +134,6 @@ export default function SignUpPage() {
                 </div>
               </div>
 
-              {/* Email */}
               <div>
                 <label className="text-slate-700 text-xs font-bold mb-2 block uppercase tracking-wider">
                   Email Bisnis
@@ -171,7 +151,6 @@ export default function SignUpPage() {
                 </div>
               </div>
 
-              {/* Password dengan Icon Mata */}
               <div>
                 <label className="text-slate-700 text-xs font-bold mb-2 block uppercase tracking-wider">
                   Kata Sandi
