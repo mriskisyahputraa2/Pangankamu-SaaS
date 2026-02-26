@@ -19,26 +19,23 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      // 1. Tetap panggil backend Hono untuk validasi bisnis logic
       const res = await api.post("/auth/login", { email, password });
 
       if (res.data.status === "success") {
-        // Simpan sementara ke sessionStorage agar bisa diambil di halaman callback
-        sessionStorage.setItem("pending_auth", JSON.stringify(res.data.data));
+        // 2. SINKRONISASI PENTING: Login juga di sisi client Supabase
+        // agar Cookies terbentuk untuk Middleware
+        await supabase.auth.signInWithPassword({ email, password });
 
         toast.success("Login Berhasil!");
-
-        // Arahkan ke callback agar muncul loading "Menyiapkan Sesi"
         router.push("/callback");
       }
     } catch (error: any) {
-      const msg =
-        error.response?.data?.message || "Email atau kata sandi salah.";
-      toast.error(msg);
+      toast.error(error.response?.data?.message || "Login gagal.");
     } finally {
       setLoading(false);
     }
   };
-
   const handleGoogleLogin = () => {
     // Langsung arahkan ke backend Hono untuk OAuth Google
     window.location.href = "http://localhost:3000/auth/login-google";

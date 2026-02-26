@@ -9,63 +9,25 @@ export const api = axios.create({
   },
 });
 
-// --- 1. REQUEST INTERCEPTOR (PENYESUAIAN PENTING) ---
-// Bagian ini bertugas "menempelkan" Token ke setiap permintaan secara otomatis
-api.interceptors.request.use(
-  (config) => {
-    const storedData = localStorage.getItem("user");
-
-    if (storedData) {
-      try {
-        const parsed = JSON.parse(storedData);
-        // Mengambil token dari data login (sesuaikan path-nya jika perlu)
-        // Ganti bagian ini di api.ts
-        const token =
-          parsed.token ||
-          parsed.access_token ||
-          parsed.session?.access_token ||
-          parsed.data?.token;
-
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      } catch (error) {
-        console.error("Gagal parse token di interceptor:", error);
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  },
-);
-
-// --- 2. RESPONSE INTERCEPTOR (DEBUGGING & ERROR HANDLING) ---
 api.interceptors.request.use((config) => {
-  const storedData = localStorage.getItem("user");
+  const storedData =
+    typeof window !== "undefined" ? localStorage.getItem("user") : null;
 
   if (storedData) {
     try {
       const parsed = JSON.parse(storedData);
 
-      // Mencoba mengambil token dari berbagai kemungkinan struktur
-      const token =
-        parsed.token ||
-        parsed.access_token ||
-        parsed.data?.token ||
-        parsed.session?.access_token;
+      // BERDASARKAN RESPON POSTMAN KAMU:
+      // Token ada di dalam objek 'data', maka aksesnya adalah parsed.data.token
+      const token = parsed.data?.token || parsed.token;
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log("Token berhasil ditempelkan ke header");
-      } else {
-        console.warn("Data 'user' ada, tapi token tidak ditemukan di dalamnya");
+        console.log("Token ditemukan dan ditempelkan!"); // Debug jika perlu
       }
     } catch (error) {
-      console.error("Gagal parse data user dari localStorage", error);
+      console.error("Gagal parse token:", error);
     }
-  } else {
-    console.warn("Key 'user' tidak ditemukan di localStorage");
   }
   return config;
 });
