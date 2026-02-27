@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
 import { LayoutGrid, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+import authService from "@/services/auth-service";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -22,43 +23,42 @@ export default function LoginPage() {
     setLoadingMessage("Memverifikasi akun...");
 
     try {
-      // 1. Validasi dengan backend
+      // 1. Validasi via Backend Hono (Controller-Service-Repository flow)
       const res = await api.post("/auth/login", { email, password });
 
       if (res.data.status === "success") {
-        setLoadingMessage("Menyinkronkan session...");
+        setLoadingMessage("Sinkronisasi sesi...");
 
-        // 2. Sinkronisasi dengan Supabase
+        // 2. Login ke Supabase Auth untuk mengaktifkan cookie session
         const { data: authData, error: authError } =
           await supabase.auth.signInWithPassword({
             email,
             password,
           });
 
-        if (authError) {
-          toast.error("Sinkronisasi session gagal");
-          return;
-        }
+        if (authError) throw new Error("Gagal sinkronisasi sesi database.");
 
-        // 3. Simpan data user
-        const userData = res.data.data;
-        localStorage.setItem("user", JSON.stringify(userData));
+        // 3. Gunakan authService untuk merapikan data lokal
+        await authService.syncLocalSession(authData.session);
 
         setLoadingMessage("Mengarahkan ke dashboard...");
 
-        // 4. Redirect ke callback untuk animasi yang konsisten
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        router.push("/callback");
+        // Beri jeda sedikit agar user bisa membaca status loader
+        setTimeout(() => {
+          router.push("/callback");
+        }, 1000);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Login gagal.");
-      setLoadingMessage("");
+      const errorMsg =
+        error.response?.data?.message || error.message || "Login gagal.";
+      toast.error(errorMsg);
       setLoading(false);
+      setLoadingMessage("");
     }
   };
 
   const handleGoogleLogin = () => {
-    // Langsung arahkan ke backend Hono untuk OAuth Google
+    // Sesuai desain, langsung redirect ke backend Hono untuk OAuth
     window.location.href = "http://localhost:3000/auth/login-google";
   };
 
@@ -66,6 +66,7 @@ export default function LoginPage() {
     <div className="font-jakarta antialiased bg-white">
       <Toaster position="top-center" richColors />
       <div className="grid lg:grid-cols-5 md:grid-cols-2 items-center h-full min-h-screen">
+        {/* Visual Branding Side */}
         <div className="max-md:order-1 lg:col-span-3 md:h-screen w-full bg-emerald-600 flex items-center justify-center p-8 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_20%,_rgba(255,255,255,0.15)_0%,_transparent_50%)]" />
           <div className="relative z-10 w-full flex flex-col items-center">
@@ -77,6 +78,7 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Form Side */}
         <div className="lg:col-span-2 w-full p-8 max-w-lg mx-auto bg-white font-jakarta">
           <form onSubmit={handleEmailLogin}>
             <div className="mb-10 text-center lg:text-left">
@@ -151,13 +153,13 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 px-4 text-sm font-bold tracking-wide rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+                className="w-full py-4 px-4 text-sm font-bold tracking-wide rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-70"
               >
                 {loading ? (
                   <div className="flex items-center gap-3">
                     <Loader2 className="animate-spin text-white" size={20} />
                     <span className="text-sm font-medium">
-                      {loadingMessage || "Memproses..."}
+                      {loadingMessage}
                     </span>
                   </div>
                 ) : (
@@ -187,7 +189,6 @@ export default function LoginPage() {
               Lanjutkan dengan Google
             </button>
 
-            {/* Link to Signup */}
             <div className="mt-8 text-center">
               <p className="text-sm text-slate-500">
                 Belum punya akun?{" "}

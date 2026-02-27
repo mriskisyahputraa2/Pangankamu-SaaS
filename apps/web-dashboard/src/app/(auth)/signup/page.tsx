@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import Link from "next/link";
-import { api } from "@/lib/api"; // Memastikan menggunakan konfigurasi API kita
+import { api } from "@/lib/api";
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
@@ -28,8 +28,7 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      // 1. Panggil API Backend Hono (auth/signup)
-      // Mengirimkan data sesuai kontrak di auth.ts: email, password, full_name, store_name, slug
+      // 1. Panggil API Backend Hono yang sudah kita refactor tadi
       const res = await api.post("/auth/signup", {
         email,
         password,
@@ -43,13 +42,12 @@ export default function SignUpPage() {
           description: "Silakan login untuk mulai mengelola stok.",
         });
 
-        // 2. Redirect ke halaman login setelah 2 detik
+        // 2. Redirect ke login setelah pendaftaran sukses
         setTimeout(() => {
           window.location.replace("/login");
         }, 2000);
       }
     } catch (error: any) {
-      // Menangkap pesan error dari backend (misal: "Slug sudah digunakan")
       const msg = error.response?.data?.message || "Gagal Mendaftar";
       toast.error(msg);
     } finally {
@@ -58,16 +56,13 @@ export default function SignUpPage() {
   };
 
   const handleGoogleSignUp = () => {
-    // Mengarahkan ke route Google OAuth di Backend Hono
     window.location.href = "http://localhost:3000/auth/login-google";
   };
 
   return (
     <div className="font-jakarta antialiased bg-white">
       <Toaster position="top-center" richColors />
-
       <div className="grid lg:grid-cols-5 md:grid-cols-2 items-center h-full min-h-screen">
-        {/* Sisi Kiri: Visual Branding */}
         <div className="max-md:order-1 lg:col-span-3 md:h-screen w-full bg-emerald-600 flex items-center justify-center p-8 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_30%_20%,_rgba(255,255,255,0.15)_0%,_transparent_50%)]" />
           <div className="relative z-10 w-full text-center">
@@ -79,7 +74,6 @@ export default function SignUpPage() {
           </div>
         </div>
 
-        {/* Sisi Kanan: Form Pendaftaran */}
         <div className="lg:col-span-2 w-full p-8 max-w-lg mx-auto bg-white font-jakarta">
           <form onSubmit={handleSignUp}>
             <div className="mb-8 text-center lg:text-left">
@@ -111,12 +105,11 @@ export default function SignUpPage() {
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 focus:bg-white pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
+                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
                     placeholder="Nama Anda"
                   />
                 </div>
               </div>
-
               <div>
                 <label className="text-slate-700 text-xs font-bold mb-2 block uppercase tracking-wider">
                   Nama Toko
@@ -128,12 +121,11 @@ export default function SignUpPage() {
                     required
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
-                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 focus:bg-white pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
+                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
                     placeholder="Contoh: Berkah Pangan"
                   />
                 </div>
               </div>
-
               <div>
                 <label className="text-slate-700 text-xs font-bold mb-2 block uppercase tracking-wider">
                   Email Bisnis
@@ -145,12 +137,11 @@ export default function SignUpPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 focus:bg-white pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
+                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 pl-11 pr-4 py-3.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
                     placeholder="pemilik@toko.com"
                   />
                 </div>
               </div>
-
               <div>
                 <label className="text-slate-700 text-xs font-bold mb-2 block uppercase tracking-wider">
                   Kata Sandi
@@ -162,7 +153,7 @@ export default function SignUpPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 focus:bg-white pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
+                    className="w-full text-sm font-semibold text-slate-900 bg-slate-50 pl-11 pr-12 py-3.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none transition-all"
                     placeholder="Min. 6 Karakter"
                   />
                   <button
@@ -179,7 +170,7 @@ export default function SignUpPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-8 py-4 px-4 text-sm font-bold tracking-wide rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+              className="w-full mt-8 py-4 px-4 text-sm font-bold tracking-wide rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
             >
               {loading ? (
                 <Loader2 className="animate-spin text-white" size={20} />
@@ -199,7 +190,7 @@ export default function SignUpPage() {
             <button
               onClick={handleGoogleSignUp}
               type="button"
-              className="w-full flex items-center justify-center gap-3 py-3.5 px-6 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-3 py-3.5 px-6 text-sm font-bold text-slate-700 border border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all"
             >
               <img
                 src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -210,7 +201,7 @@ export default function SignUpPage() {
             </button>
 
             <p className="mt-8 text-center text-sm text-slate-400 font-bold tracking-tight">
-              Sudah punya akun?
+              Sudah punya akun?{" "}
               <Link
                 href="/login"
                 className="text-emerald-600 font-black hover:underline ml-1"
