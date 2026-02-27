@@ -13,20 +13,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("");
   const router = useRouter();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setLoadingMessage("Memverifikasi akun...");
 
     try {
-      // 1. Tetap panggil backend Hono untuk validasi bisnis logic
+      // 1. Validasi dengan backend
       const res = await api.post("/auth/login", { email, password });
 
       if (res.data.status === "success") {
-        // 2. SINKRONISASI PENTING: Login juga di sisi client Supabase
-        // agar Cookies terbentuk untuk Middleware
-        console.log("🔐 Starting Supabase client auth...");
+        setLoadingMessage("Menyinkronkan session...");
+
+        // 2. Sinkronisasi dengan Supabase
         const { data: authData, error: authError } =
           await supabase.auth.signInWithPassword({
             email,
@@ -34,52 +36,27 @@ export default function LoginPage() {
           });
 
         if (authError) {
-          console.error("❌ Supabase auth error:", authError);
           toast.error("Sinkronisasi session gagal");
           return;
         }
 
-        console.log("✅ Supabase auth success:", authData.user?.email);
-
-        // 3. Simpan data user ke localStorage
+        // 3. Simpan data user
         const userData = res.data.data;
         localStorage.setItem("user", JSON.stringify(userData));
 
-        console.log("💾 User data saved to localStorage:", userData);
+        setLoadingMessage("Mengarahkan ke dashboard...");
 
-        toast.success("Login Berhasil!");
-
-        // 4. TUNGGU session sync dulu, baru redirect
-        console.log("⏳ Waiting for session to sync...");
-        await new Promise((resolve) => setTimeout(resolve, 2000)); // Increase delay
-
-        // 5. Verify session is actually set
-        const { data: verifySession } = await supabase.auth.getSession();
-        console.log(
-          "🔍 Session verification:",
-          verifySession.session?.user?.email || "No session",
-        );
-
-        // 6. Cek apakah user punya store_id dari metadata
-        const userMetadata = authData.user?.user_metadata;
-        const storeId = userMetadata?.store_id || userData.user?.store_id;
-
-        console.log("🏪 Store check result:", { userMetadata, storeId });
-
-        if (storeId) {
-          console.log("✅ User has store, redirecting to dashboard...");
-          window.location.href = "/";
-        } else {
-          console.log("⚠️ User has no store, redirecting to setup...");
-          window.location.href = "/setup-toko";
-        }
+        // 4. Redirect ke callback untuk animasi yang konsisten
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        router.push("/callback");
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Login gagal.");
-    } finally {
+      setLoadingMessage("");
       setLoading(false);
     }
   };
+
   const handleGoogleLogin = () => {
     // Langsung arahkan ke backend Hono untuk OAuth Google
     window.location.href = "http://localhost:3000/auth/login-google";
@@ -177,7 +154,12 @@ export default function LoginPage() {
                 className="w-full py-4 px-4 text-sm font-bold tracking-wide rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
               >
                 {loading ? (
-                  <Loader2 className="animate-spin text-white" size={20} />
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="animate-spin text-white" size={20} />
+                    <span className="text-sm font-medium">
+                      {loadingMessage || "Memproses..."}
+                    </span>
+                  </div>
                 ) : (
                   "Masuk ke Dashboard"
                 )}
