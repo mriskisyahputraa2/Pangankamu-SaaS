@@ -27,8 +27,15 @@ export default function LoginPage() {
         // agar Cookies terbentuk untuk Middleware
         await supabase.auth.signInWithPassword({ email, password });
 
+        // 3. Simpan data user ke localStorage
+        localStorage.setItem("user", JSON.stringify(res.data.data));
+
         toast.success("Login Berhasil!");
-        router.push("/callback");
+
+        // 4. Redirect langsung ke dashboard tanpa callback
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1000);
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Login gagal.");

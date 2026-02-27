@@ -7,10 +7,11 @@ import {
   Wallet,
   ArrowUpRight,
   Package,
+  Loader2,
 } from "lucide-react";
 import { getProducts } from "@/services/product-service";
+import { toast } from "sonner";
 
-// Komponen Kartu Statistik yang Minimalis
 const StatCard = ({ title, value, icon: Icon, color, detail }: any) => (
   <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between hover:border-emerald-100 transition-colors">
     <div className="flex items-center justify-between mb-4">
@@ -45,21 +46,33 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Mengambil data dari backend Hono yang sudah modular
-        const res = await getProducts(1, 100);
+        const storedData = localStorage.getItem("user");
+        const parsed = storedData ? JSON.parse(storedData) : null;
+        // Ambil store_id dari metadata user
+        const storeId =
+          parsed?.data?.user?.store_id ||
+          parsed?.user?.store_id ||
+          parsed?.store_id;
+
+        if (!storeId) {
+          setLoading(false);
+          return;
+        }
+
+        const res = await getProducts(storeId, 1, 100);
         if (res.status === "success") {
           const items = res.data;
-
-          // Logika Perhitungan Statistik
           const totalProducts = items.length;
           const lowStock = items.filter((p: any) => p.stock < 10).length;
+          // Hitung berdasarkan price_sell sesuai schema
           const totalValue = items.reduce(
-            (acc: number, curr: any) => acc + curr.price * curr.stock,
+            (acc: number, curr: any) =>
+              acc + Number(curr.price_sell) * curr.stock,
             0,
           );
 
           setStats({ totalProducts, lowStock, totalValue });
-          setRecentItems(items.slice(0, 5)); // Ambil 5 produk terbaru saja
+          setRecentItems(items.slice(0, 5));
         }
       } catch (err) {
         console.error("Dashboard error:", err);
@@ -71,18 +84,16 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-8 w-full">
-      {/* Header Dashboard */}
+    <div className="space-y-8 w-full font-jakarta">
       <div>
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-          Halo, Riski! 👋
+          Halo, Pengusaha Pangan! 👋
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Berikut adalah ringkasan stok pangan kamu hari ini.
+          Berikut ringkasan ruko digital kamu hari ini.
         </p>
       </div>
 
-      {/* Grid Statistik */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Total Produk"
@@ -107,19 +118,13 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Daftar Produk Terbaru */}
         <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-bold text-slate-900">Produk Terbaru</h2>
-            <button className="text-emerald-600 text-xs font-bold hover:underline">
-              Lihat Semua
-            </button>
-          </div>
+          <h2 className="font-bold text-slate-900 mb-6">Produk Terbaru</h2>
           <div className="space-y-4">
             {loading ? (
-              <p className="text-center py-10 text-slate-400 text-sm italic">
-                Menghubungkan ke server...
-              </p>
+              <div className="flex justify-center py-10">
+                <Loader2 className="animate-spin text-emerald-500" />
+              </div>
             ) : recentItems.length === 0 ? (
               <p className="text-center py-10 text-slate-400 text-sm italic">
                 Belum ada data produk.
@@ -139,7 +144,7 @@ export default function DashboardPage() {
                         {item.name}
                       </p>
                       <p className="text-[10px] text-slate-400 uppercase font-bold">
-                        {item.category}
+                        {item.categories?.name || "Tanpa Kategori"}
                       </p>
                     </div>
                   </div>
@@ -156,27 +161,18 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-
-        {/* Info Box / Pengumuman Minimalis */}
         <div className="bg-emerald-900 rounded-3xl p-8 text-white relative overflow-hidden flex flex-col justify-between min-h-[300px]">
-          <div className="relative z-10">
+          <div>
             <h2 className="text-2xl font-bold mb-3">
               Analisis AI <br /> Segera Hadir!
             </h2>
             <p className="text-emerald-100/70 text-sm leading-relaxed max-w-[200px]">
-              Pantau tren harga ayam dan daging secara otomatis dengan bantuan
-              kecerdasan buatan.
+              Prediksi stok cerdas untuk menghindari barang basi.
             </p>
           </div>
-          <div className="relative z-10">
-            <button className="bg-emerald-400 text-emerald-950 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-white transition-colors">
-              Pelajari Fitur <ArrowUpRight size={18} />
-            </button>
-          </div>
-
-          {/* Dekorasi Flat Minimalis */}
-          <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-emerald-800 rounded-full blur-3xl opacity-50"></div>
-          <div className="absolute -right-5 top-5 w-24 h-24 border-4 border-emerald-800/30 rounded-full"></div>
+          <button className="w-fit bg-emerald-400 text-emerald-950 px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-white transition-colors">
+            Pelajari Fitur <ArrowUpRight size={18} />
+          </button>
         </div>
       </div>
     </div>

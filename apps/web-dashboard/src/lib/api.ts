@@ -10,20 +10,15 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const storedData =
-    typeof window !== "undefined" ? localStorage.getItem("user") : null;
-
+  const storedData = localStorage.getItem("user");
   if (storedData) {
     try {
       const parsed = JSON.parse(storedData);
-
-      // BERDASARKAN RESPON POSTMAN KAMU:
-      // Token ada di dalam objek 'data', maka aksesnya adalah parsed.data.token
-      const token = parsed.data?.token || parsed.token;
+      // Mendukung kedua jalur: Signup Manual (parsed.data.token) atau Google (parsed.token)
+      const token = parsed.token || parsed.data?.token || parsed.access_token;
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        console.log("Token ditemukan dan ditempelkan!"); // Debug jika perlu
       }
     } catch (error) {
       console.error("Gagal parse token:", error);

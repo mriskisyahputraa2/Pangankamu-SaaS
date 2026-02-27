@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
+  let supabaseResponse = NextResponse.next({
     request: { headers: request.headers },
   });
 
@@ -15,40 +15,48 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
+          cookiesToSet.forEach(({ name, value, options }) =>
             request.cookies.set(name, value),
           );
-          response = NextResponse.next({ request });
+          supabaseResponse = NextResponse.next({
+            request: { headers: request.headers },
+          });
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, {
-              ...options,
-              sameSite: "lax",
-              path: "/",
-            }),
+            supabaseResponse.cookies.set(name, value, options),
           );
         },
       },
     },
   );
 
+  console.log("🔍 Middleware checking path:", request.nextUrl.pathname);
+
+  // Auth routes yang tidak perlu proteksi
+  const authRoutes = ["/login", "/signup", "/callback", "/setup-toko"];
+  const isAuthRoute = authRoutes.some((route) =>
+    request.nextUrl.pathname.startsWith(route),
+  );
+
+  if (isAuthRoute) {
+    console.log("✅ Auth route, allowing access");
+    return supabaseResponse;
+  }
+
+  // Check authentication untuk protected routes
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
 
-  const isAuthPage =
-    request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/callback") ||
-    request.nextUrl.pathname.startsWith("/signup");
-
-  if (!user && !isAuthPage) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  if (error || !user) {
+    console.log("❌ Not authenticated, redirecting to login");
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
   }
 
-  if (user && isAuthPage) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-
-  return response;
+  console.log("✅ User authenticated:", user.email);
+  return supabaseResponse;
 }
 
 export const config = {
