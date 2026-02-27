@@ -44,6 +44,19 @@ auth.post("/signup", async (c) => {
       .single();
 
     if (storeError) {
+      // Handle duplicate slug/name error dengan pesan bahasa Indonesia
+      if (
+        storeError.code === "23505" ||
+        storeError.message.includes("duplicate key")
+      ) {
+        return c.json(
+          sendResponse(
+            "error",
+            "Nama toko sudah digunakan, silakan pilih nama lain",
+          ),
+          400,
+        );
+      }
       return c.json(
         sendResponse("error", "Gagal membuat toko: " + storeError.message),
         400,
@@ -152,8 +165,25 @@ auth.post("/setup-store", requireAuth, async (c) => {
       .select()
       .single();
 
-    if (storeError)
-      return c.json(sendResponse("error", storeError.message), 400);
+    if (storeError) {
+      // Handle duplicate slug/name error dengan pesan bahasa Indonesia
+      if (
+        storeError.code === "23505" ||
+        storeError.message.includes("duplicate key")
+      ) {
+        return c.json(
+          sendResponse(
+            "error",
+            "Nama toko sudah digunakan, silakan pilih nama lain",
+          ),
+          400,
+        );
+      }
+      return c.json(
+        sendResponse("error", "Gagal membuat toko: " + storeError.message),
+        400,
+      );
+    }
 
     const userEmail = user.email ?? "";
     const defaultName = userEmail

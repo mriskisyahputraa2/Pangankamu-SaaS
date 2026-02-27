@@ -1,5 +1,6 @@
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import AuthGuard from "@/components/AuthGuard";
 
 // Konfigurasi font Jakarta Sans
 const jakarta = Plus_Jakarta_Sans({
@@ -16,7 +17,9 @@ export default function RootLayout({
   return (
     <html lang="id">
       {/* Masukkan nama variabel font ke dalam body */}
-      <body className={`${jakarta.className} antialiased`}>{children}</body>
+      <body className={`${jakarta.className} antialiased`}>
+        <AuthGuard>{children}</AuthGuard>
+      </body>
     </html>
   );
 }

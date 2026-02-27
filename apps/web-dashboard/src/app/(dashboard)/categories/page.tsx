@@ -73,7 +73,7 @@ export default function CategoriesPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Kategori Produk</h1>
           <p className="text-sm text-slate-500">
-            Grup barang untuk isolasi tenant SaaS. [cite: 15, 131]
+            Grup barang untuk isolasi tenant SaaS.
           </p>
         </div>
         {activeStoreId && (
