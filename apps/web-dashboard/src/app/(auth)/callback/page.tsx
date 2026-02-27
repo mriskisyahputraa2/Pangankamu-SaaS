@@ -181,21 +181,89 @@ export default function AuthCallbackPage() {
           localStorage.setItem("user", JSON.stringify(updatedUserData));
 
           console.log("✅ Existing store found, redirecting to Dashboard...");
-          setTimeout(() => {
+
+          // PERBAIKAN: Tunggu lebih lama agar session sync sempurna dengan server
+          console.log("⏳ Waiting for session sync with server...");
+          await new Promise((resolve) => setTimeout(resolve, 3000)); // Lebih lama
+
+          // Refresh session untuk memastikan metadata terupdate
+          console.log("🔄 Refreshing session before redirect...");
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            console.error("❌ Refresh error:", refreshError);
+          }
+
+          // Tunggu lagi setelah refresh
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          // Pastikan session benar-benar ready sebelum redirect
+          const { data: sessionCheck } = await supabase.auth.getSession();
+          if (sessionCheck.session?.user) {
+            console.log("✅ Session confirmed, redirecting to dashboard");
+            console.log(
+              "✅ Final session data:",
+              sessionCheck.session.user.user_metadata,
+            );
             window.location.href = "/";
-          }, 500);
+          } else {
+            console.log("❌ Session not ready, trying final refresh...");
+            await supabase.auth.refreshSession();
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 2000);
+          }
         } else {
           console.log("🏪 No store found, redirecting to Setup Toko...");
-          setTimeout(() => {
-            window.location.href = "/setup-toko";
-          }, 500);
+
+          // PERBAIKAN: Tunggu session sync untuk setup-toko juga dengan delay lebih lama
+          console.log("⏳ Syncing session for setup-toko...");
+          await new Promise((resolve) => setTimeout(resolve, 2000)); // Lebih lama
+
+          // Refresh session untuk memastikan user_metadata tersedia
+          console.log("🔄 Refreshing session for setup-toko...");
+          const { error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) {
+            console.error("❌ Setup refresh error:", refreshError);
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          window.location.href = "/setup-toko";
         }
       } catch (dbError) {
         console.error("❌ Database check error:", dbError);
-        // Fallback: redirect ke setup toko jika ada error
-        setTimeout(() => {
-          window.location.href = "/setup-toko";
-        }, 500);
+
+        // PERBAIKAN: Better fallback handling with more retries
+        console.log(
+          "🔄 Attempting fallback to setup-toko with session sync...",
+        );
+
+        try {
+          // Tunggu session sync dulu
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          // Refresh session untuk memastikan
+          console.log("🔄 Refreshing session for fallback...");
+          const { error: fallbackRefreshError } =
+            await supabase.auth.refreshSession();
+          if (fallbackRefreshError) {
+            console.error("❌ Fallback refresh error:", fallbackRefreshError);
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          // Cek session sekali lagi
+          const { data: fallbackSession } = await supabase.auth.getSession();
+          if (fallbackSession.session?.user) {
+            console.log("✅ Fallback session found, redirecting to setup-toko");
+            window.location.href = "/setup-toko";
+          } else {
+            console.log("❌ No fallback session, redirecting to login");
+            window.location.href = "/login";
+          }
+        } catch (fallbackError) {
+          console.error("❌ Complete fallback failure:", fallbackError);
+          window.location.href = "/login";
+        }
       }
     };
 
