@@ -36,8 +36,6 @@ import {
   Trash2,
   Plus,
 } from "lucide-react";
-
-// --- Services ---
 import {
   getProducts,
   createProduct,
@@ -48,232 +46,193 @@ import { getCategories } from "@/services/category-service";
 import { toast } from "sonner";
 
 export default function ProductsPage() {
-  // --- State Data & Loading ---
+  const [activeStoreId, setActiveStoreId] = useState<string>("");
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [totalData, setTotalData] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  // --- State Kontrol (Pagination, Search, Filter) ---
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState("10");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-
-  // --- State Form (Tambah/Edit) ---
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
-    category: "",
-    price: "",
+    category_id: "",
+    price_base: "",
+    price_sell: "",
     stock: "",
+    unit: "pcs",
   });
 
-  // --- 1. Fetch Daftar Kategori (Untuk Dropdown) ---
-  const fetchCategories = async () => {
-    try {
-      const res = await getCategories(1, 100, "");
-      if (res.status === "success") {
-        setCategories(res.data);
-      }
-    } catch (err) {
-      console.error("Gagal mengambil kategori:", err);
+  useEffect(() => {
+    const storedData = localStorage.getItem("user");
+    if (storedData) {
+      const parsed = JSON.parse(storedData);
+      const storeId =
+        parsed.data?.user?.store_id || parsed.user?.store_id || parsed.store_id;
+      if (storeId) setActiveStoreId(storeId);
     }
-  };
+  }, []);
 
-  // --- 2. Fetch Daftar Produk ---
-  const fetchProducts = useCallback(async () => {
+  const fetchData = useCallback(async () => {
+    if (!activeStoreId) return;
     setLoading(true);
     try {
-      // Catatan: Pastikan product-service kamu sudah mendukung search & filter jika ingin sinkron
-      const res = await getProducts(currentPage, parseInt(rowsPerPage));
-      if (res.status === "success") {
-        setProducts(res.data);
-        setTotalData(res.total);
+      const [prodRes, catRes] = await Promise.all([
+        getProducts(
+          activeStoreId,
+          currentPage,
+          parseInt(rowsPerPage),
+          searchTerm,
+        ),
+        getCategories(activeStoreId, 1, 100, ""),
+      ]);
+      if (prodRes.status === "success") {
+        setProducts(prodRes.data);
+        setTotalData(prodRes.meta?.total_data || 0);
       }
-    } catch (err: any) {
-      toast.error("Gagal sinkronisasi data produk");
+      if (catRes.status === "success") setCategories(catRes.data);
+    } catch (err) {
+      toast.error("Gagal sinkronisasi data");
     } finally {
       setLoading(false);
     }
-  }, [currentPage, rowsPerPage]);
+  }, [activeStoreId, currentPage, rowsPerPage, searchTerm]);
 
   useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, [fetchProducts]);
+    fetchData();
+  }, [fetchData]);
 
-  // --- 3. Handler Simpan (Create & Update) ---
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const payload = {
         ...formData,
-        price: parseInt(formData.price),
-        stock: parseInt(formData.stock),
+        store_id: activeStoreId,
+        price_base: Number(formData.price_base),
+        price_sell: Number(formData.price_sell),
+        stock: Number(formData.stock),
       };
-
-      let res;
-      if (editingId) {
-        res = await updateProduct(editingId, payload);
-      } else {
-        res = await createProduct(payload);
-      }
-
-      toast.success(res.message || "Data berhasil disimpan");
+      editingId
+        ? await updateProduct(editingId, payload)
+        : await createProduct(payload);
+      toast.success("Berhasil disimpan");
       setIsModalOpen(false);
-      resetForm();
-      fetchProducts();
+      setFormData({
+        name: "",
+        category_id: "",
+        price_base: "",
+        price_sell: "",
+        stock: "",
+        unit: "pcs",
+      });
+      fetchData();
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Terjadi kesalahan");
     }
   };
 
-  // --- 4. Handler Hapus ---
-  const handleDelete = async (id: number) => {
-    if (confirm("Yakin ingin menghapus produk ini?")) {
-      try {
-        const res = await deleteProduct(id);
-        toast.success(res.message || "Produk dihapus");
-        fetchProducts();
-      } catch (err: any) {
-        toast.error("Gagal menghapus produk");
-      }
-    }
-  };
-
-  const openEditModal = (item: any) => {
-    setEditingId(item.id);
-    setFormData({
-      name: item.name,
-      category: item.category,
-      price: item.price.toString(),
-      stock: item.stock.toString(),
-    });
-    setIsModalOpen(true);
-  };
-
-  const resetForm = () => {
-    setEditingId(null);
-    setFormData({ name: "", category: "", price: "", stock: "" });
-  };
-
   const totalPages = Math.ceil(totalData / parseInt(rowsPerPage));
 
   return (
-    <div className="w-full space-y-6">
-      {/* HEADER SECTION */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="w-full space-y-6 font-jakarta">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Daftar Produk
+          <h1 className="text-2xl font-bold text-slate-900">
+            Inventaris Produk
           </h1>
           <p className="text-sm text-slate-500">
-            Manajemen stok pangan Toko Rizki jaya.
+            Kelola stok dan harga jual UMKM kamu. [cite: 7, 58]
           </p>
         </div>
-
-        <Dialog
-          open={isModalOpen}
-          onOpenChange={(val) => {
-            setIsModalOpen(val);
-            if (!val) resetForm();
-          }}
-        >
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl gap-2 shadow-sm h-11 px-5">
+            <Button className="bg-emerald-600 rounded-xl h-11 px-5">
               <Plus size={18} /> Tambah Produk
             </Button>
           </DialogTrigger>
-          <DialogContent className="rounded-2xl border-none sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px] rounded-2xl">
             <DialogHeader>
-              <DialogTitle className="text-xl font-bold">
-                {editingId ? "Edit Produk" : "Tambah Produk Baru"}
+              <DialogTitle className="font-bold">
+                {editingId ? "Edit" : "Tambah"} Produk
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSave} className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Nama Produk
-                </label>
+            <form onSubmit={handleSave} className="space-y-4">
+              <Input
+                placeholder="Nama Produk"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                required
+              />
+              <Select
+                value={formData.category_id}
+                onValueChange={(val) =>
+                  setFormData({ ...formData, category_id: val })
+                }
+              >
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="Pilih Kategori" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="grid grid-cols-2 gap-3">
                 <Input
-                  placeholder="Contoh: Ayam Potong"
-                  value={formData.name}
+                  type="number"
+                  placeholder="Harga Modal"
+                  value={formData.price_base}
                   onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
+                    setFormData({ ...formData, price_base: e.target.value })
                   }
-                  className="rounded-xl border-slate-100 h-11 focus:ring-emerald-500"
+                />
+                <Input
+                  type="number"
+                  placeholder="Harga Jual"
+                  value={formData.price_sell}
+                  onChange={(e) =>
+                    setFormData({ ...formData, price_sell: e.target.value })
+                  }
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Kategori
-                </label>
-                <Select
-                  value={formData.category}
-                  onValueChange={(val) =>
-                    setFormData({ ...formData, category: val })
-                  }
-                >
-                  <SelectTrigger className="rounded-xl border-slate-100 h-11">
-                    <SelectValue placeholder="Pilih Kategori" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.name}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    Harga (Rp)
-                  </label>
-                  <Input
-                    type="number"
-                    value={formData.price}
-                    onChange={(e) =>
-                      setFormData({ ...formData, price: e.target.value })
-                    }
-                    className="rounded-xl border-slate-100 h-11"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    Stok
-                  </label>
-                  <Input
-                    type="number"
-                    value={formData.stock}
-                    onChange={(e) =>
-                      setFormData({ ...formData, stock: e.target.value })
-                    }
-                    className="rounded-xl border-slate-100 h-11"
-                    required
-                  />
-                </div>
+                <Input
+                  type="number"
+                  placeholder="Stok"
+                  value={formData.stock}
+                  onChange={(e) =>
+                    setFormData({ ...formData, stock: e.target.value })
+                  }
+                  required
+                />
+                <Input
+                  placeholder="Unit (kg/pcs)"
+                  value={formData.unit}
+                  onChange={(e) =>
+                    setFormData({ ...formData, unit: e.target.value })
+                  }
+                />
               </div>
-              <DialogFooter className="pt-4">
-                <Button
-                  type="submit"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 rounded-xl py-6 h-11 font-bold"
-                >
-                  {editingId ? "Simpan Perubahan" : "Simpan Produk"}
-                </Button>
-              </DialogFooter>
+              <Button
+                type="submit"
+                className="w-full bg-emerald-600 py-6 font-bold"
+              >
+                Simpan Produk
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* FILTER & SEARCH SECTION */}
-      <div className="flex flex-col md:flex-row gap-3">
+      <div className="flex gap-3">
         <div className="relative flex-1">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -281,180 +240,94 @@ export default function ProductsPage() {
           />
           <Input
             placeholder="Cari produk..."
-            className="pl-10 border-slate-200 rounded-xl h-11 bg-white focus:ring-emerald-500"
+            className="pl-10 h-11 rounded-xl"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-full md:w-[200px] border-slate-200 rounded-xl h-11 bg-white">
-            <Filter size={18} className="mr-2 text-slate-400" />
-            <SelectValue placeholder="Kategori" />
-          </SelectTrigger>
-          <SelectContent className="rounded-xl">
-            <SelectItem value="all">Semua Kategori</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.name.toLowerCase()}>
-                {cat.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
-      {/* TABLE SECTION */}
       <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm">
-        <div className="overflow-x-auto min-h-[450px]">
-          <Table>
-            <TableHeader className="bg-slate-50/50">
-              <TableRow className="border-b border-slate-100">
-                <TableHead className="w-[70px] text-center font-bold text-slate-700 uppercase text-[11px]">
-                  No
-                </TableHead>
-                <TableHead className="font-bold text-slate-700 uppercase text-[11px]">
-                  Nama Produk
-                </TableHead>
-                <TableHead className="font-bold text-slate-700 uppercase text-[11px]">
-                  Kategori
-                </TableHead>
-                <TableHead className="text-right font-bold text-slate-700 uppercase text-[11px]">
-                  Harga
-                </TableHead>
-                <TableHead className="text-center font-bold text-slate-700 uppercase text-[11px]">
-                  Stok
-                </TableHead>
-                <TableHead className="text-right font-bold text-slate-700 uppercase text-[11px] pr-6">
-                  Aksi
-                </TableHead>
+        <Table>
+          <TableHeader className="bg-slate-50/50">
+            <TableRow className="text-[11px] uppercase font-bold text-slate-500">
+              <TableHead className="text-center w-[60px]">No</TableHead>
+              <TableHead>Produk</TableHead>
+              <TableHead>Kategori</TableHead>
+              <TableHead className="text-right">Harga Jual</TableHead>
+              <TableHead className="text-center">Stok</TableHead>
+              <TableHead className="text-right pr-6">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-60 text-center">
+                  <Loader2 className="animate-spin inline text-emerald-500" />
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-72 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Loader2
-                        className="animate-spin text-emerald-500"
-                        size={32}
-                      />
-                      <p className="text-sm font-medium text-slate-400">
-                        Sinkronisasi data...
-                      </p>
-                    </div>
+            ) : (
+              products.map((item, index) => (
+                <TableRow key={item.id} className="text-sm">
+                  <TableCell className="text-center text-slate-400">
+                    {(currentPage - 1) * Number(rowsPerPage) + index + 1}
+                  </TableCell>
+                  <TableCell className="font-bold text-slate-900">
+                    {item.name}
+                  </TableCell>
+                  <TableCell>
+                    <span className="bg-slate-100 px-2 py-1 rounded text-[10px] font-bold uppercase">
+                      {item.categories?.name || "Umum"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    Rp {Number(item.price_sell).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <span
+                      className={`px-2 py-0.5 rounded font-bold ${item.stock < 10 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}`}
+                    >
+                      {item.stock}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right pr-4">
+                    <Button variant="ghost" size="icon">
+                      <Pencil size={16} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-red-400"
+                    >
+                      <Trash2 size={16} />
+                    </Button>
                   </TableCell>
                 </TableRow>
-              ) : products.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="h-40 text-center text-slate-400 italic"
-                  >
-                    Belum ada produk terdaftar.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                products.map((item, index) => (
-                  <TableRow
-                    key={item.id}
-                    className="border-b border-slate-50 hover:bg-slate-50/40 transition-colors"
-                  >
-                    <TableCell className="text-center text-slate-400 text-sm">
-                      {(currentPage - 1) * parseInt(rowsPerPage) + index + 1}
-                    </TableCell>
-                    <TableCell className="font-semibold text-slate-900">
-                      {item.name}
-                    </TableCell>
-                    <TableCell>
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-tighter italic">
-                        {item.category}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-medium text-slate-700">
-                      Rp {Number(item.price).toLocaleString("id-ID")}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span
-                        className={`inline-flex items-center justify-center min-w-[35px] px-2 py-1 rounded-md text-xs font-bold ${item.stock < 10 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}`}
-                      >
-                        {item.stock}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right pr-4">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditModal(item)}
-                          className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg h-9 w-9"
-                        >
-                          <Pencil size={16} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(item.id)}
-                          className="text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg h-9 w-9"
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* PAGINATION FOOTER */}
-        <div className="flex flex-col md:flex-row items-center justify-between px-6 py-4 gap-4 border-t border-slate-100 bg-white">
-          <div className="flex items-center gap-3 text-sm text-slate-500">
-            <span>Tampilkan</span>
-            <Select
-              value={rowsPerPage}
-              onValueChange={(val) => {
-                setRowsPerPage(val);
-                setCurrentPage(1);
-              }}
+              ))
+            )}
+          </TableBody>
+        </Table>
+        <div className="p-4 border-t flex justify-between items-center text-sm text-slate-500">
+          <span>
+            Hal {currentPage} dari {totalPages || 1}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => p - 1)}
+              disabled={currentPage === 1}
             >
-              <SelectTrigger className="h-9 w-[75px] border-slate-200 rounded-lg">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="5">5</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="hidden sm:inline">dari {totalData} produk</span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <div className="text-sm font-medium text-slate-700">
-              Hal {currentPage} / {totalPages || 1}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-lg h-9 w-9 p-0"
-                disabled={currentPage === 1 || loading}
-                onClick={() => setCurrentPage((p) => p - 1)}
-              >
-                <ChevronLeft size={16} />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-lg h-9 w-9 p-0"
-                disabled={
-                  currentPage === totalPages || totalPages === 0 || loading
-                }
-                onClick={() => setCurrentPage((p) => p + 1)}
-              >
-                <ChevronRight size={16} />
-              </Button>
-            </div>
+              <ChevronLeft size={16} />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={currentPage === totalPages || totalPages === 0}
+            >
+              <ChevronRight size={16} />
+            </Button>
           </div>
         </div>
       </div>

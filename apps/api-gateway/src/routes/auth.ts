@@ -1,18 +1,18 @@
 import { Hono } from "hono";
 import { supabase, supabaseAdmin } from "../config/supabase.js";
+import { requireAuth } from "../middleware/authMiddleware.js";
 import { sendResponse } from "../utils/response.js";
 
 const auth = new Hono();
 
 /**
- * 1. SIGN-UP (PENDAFTARAN PENGUSAHA BARU)
- * Alur: Auth -> Create Store -> Update Metadata
+ * 1. SIGN-UP (Registrasi Pengusaha Baru)
+ * Membuat User Auth sekaligus baris data di tabel stores
  */
 auth.post("/signup", async (c) => {
   try {
     const { email, password, full_name, store_name, slug } = await c.req.json();
 
-    // Validasi input minimal
     if (!email || !password || !store_name) {
       return c.json(
         sendResponse("error", "Data pendaftaran tidak lengkap"),
@@ -20,13 +20,7 @@ auth.post("/signup", async (c) => {
       );
     }
 
-    if (password.lenght < 6) {
-      return c.json(
-        sendResponse("error", "Password terlalu pendek, minimal 6 karakter"),
-      );
-    }
-
-    // Registrasi akun ke Supabase Auth
+    // Registrasi ke Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -34,17 +28,15 @@ auth.post("/signup", async (c) => {
     });
 
     if (authError || !authData.user) {
-      const message =
-        authError?.message === "User already registered"
-          ? "Email ini sudah terdaftar. Silakan gunakan email lain atau login."
-          : authError?.message || "Gagal mendaftar";
-
-      return c.json(sendResponse("error", message), 400);
+      return c.json(
+        sendResponse("error", authError?.message || "Gagal mendaftar"),
+        400,
+      );
     }
 
     const userId = authData.user.id;
 
-    // Membuat Toko Baru (Table stores)
+    // Membuat baris di tabel stores (Multi-Tenancy)
     const { data: storeData, error: storeError } = await supabase
       .from("stores")
       .insert([{ name: store_name, slug: slug, owner_id: userId }])
@@ -52,77 +44,55 @@ auth.post("/signup", async (c) => {
       .single();
 
     if (storeError) {
-      // Jika toko gagal, gunakan kode error 23505 untuk cek slug ganda
-      const msg =
-        storeError.code === "23505"
-          ? "Slug atau nama toko sudah digunakan"
-          : storeError.message;
-      return c.json(sendResponse("error", "Gagal membuat toko: " + msg), 400);
+      return c.json(
+        sendResponse("error", "Gagal membuat toko: " + storeError.message),
+        400,
+      );
     }
 
-    // Update Metadata User (Role & Store ID)
-    const { error: updateError } =
-      await supabaseAdmin.auth.admin.updateUserById(userId, {
-        user_metadata: {
-          full_name,
-          store_id: storeData.id,
-          role: "vendor",
-        },
-      });
-
-    if (updateError) {
-      return c.json(sendResponse("error", "Gagal mengatur hak akses"), 500);
-    }
+    // Update Metadata User agar store_id menempel di JWT
+    await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: { full_name, store_id: storeData.id, role: "vendor" },
+    });
 
     return c.json(
-      sendResponse(
-        "success",
-        "Registrasi berhasil, toko digital PanganKU kamu sudah siap!",
-        {
-          user: { id: userId, name: full_name },
-          store: { id: storeData.id, name: storeData.name, role: "vendor" },
-        },
-      ),
+      sendResponse("success", "Registrasi berhasil!", {
+        user: { id: userId, email },
+        store: { id: storeData.id, name: storeData.name },
+      }),
       201,
     );
   } catch (error) {
-    return c.json(
-      sendResponse("error", "Terjadi kesalahan internal pada server"),
-      500,
-    );
+    return c.json(sendResponse("error", "Terjadi kesalahan server"), 500);
   }
 });
 
-/* API LOGIN */
+/**
+ * 2. LOGIN (Email & Password)
+ */
 auth.post("/login", async (c) => {
   try {
-    // data permintan untuk login yaitu: email dan password
     const { email, password } = await c.req.json();
 
-    // logic jika email dan password tidak ada dimasukkan
     if (!email || !password) {
-      return c.json({
-        status: "error",
-        message: "Email dan password wajib diisi",
-      });
+      return c.json(
+        sendResponse("error", "Email dan password wajib diisi"),
+        400,
+      );
     }
 
-    // proses verifikasi email dan password yang dikirim ke supabase
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    // logic jika proses verifikasi gagal
     if (error) {
       return c.json(sendResponse("error", "Email atau password salah"), 401);
     }
 
-    // jika berhasil proses verifikasi
     return c.json(
       sendResponse("success", "Login berhasil", {
         token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
         user: {
           id: data.user.id,
           email: data.user.email,
@@ -132,30 +102,87 @@ auth.post("/login", async (c) => {
       200,
     );
   } catch (error) {
-    return c.json(sendResponse("error", "Terjadi gangguan pada server"), 500);
+    return c.json(sendResponse("error", "Gangguan server saat login"), 500);
   }
 });
 
-/* ROUTE LOGIN GOOGLE */
+/**
+ * 3. LOGIN WITH GOOGLE (OAuth)
+ */
 auth.get("/login-google", async (c) => {
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: "http://localhost:3001/callback", // Sesuaikan dengan URL Frontend
+        redirectTo: "http://localhost:3001/callback", // URL Frontend kamu
         queryParams: { access_type: "offline", prompt: "consent" },
       },
     });
 
-    if (error)
-      return c.json(
-        sendResponse("error", "Gagal menghubungkan ke Google"),
-        500,
-      );
-
+    if (error) return c.json(sendResponse("error", "Gagal OAuth"), 500);
     return c.redirect(data.url);
   } catch (err) {
-    return c.json(sendResponse("error", "OAuth failed"), 500);
+    return c.json(sendResponse("error", "Internal error"), 500);
+  }
+});
+
+/**
+ * 4. SETUP STORE (Untuk User Google Baru)
+ * Menghubungkan akun Google ke Toko baru
+ */
+auth.post("/setup-store", requireAuth, async (c) => {
+  try {
+    const user = c.get("user");
+    const { store_name, slug } = await c.req.json();
+
+    if (!store_name) {
+      return c.json(sendResponse("error", "Nama toko wajib diisi"), 400);
+    }
+
+    // Buat data toko di database
+    const { data: store, error: storeError } = await supabase
+      .from("stores")
+      .insert([
+        {
+          name: store_name,
+          slug: slug || store_name.toLowerCase().replace(/\s+/g, "-"),
+          owner_id: user.id,
+        },
+      ])
+      .select()
+      .single();
+
+    if (storeError)
+      return c.json(sendResponse("error", storeError.message), 400);
+
+    const userEmail = user.email ?? "";
+    const defaultName = userEmail
+      ? userEmail.split("@")[0]
+      : "Pengusaha Pangankamu";
+    // Kunci store_id ke metadata user secara permanen
+    const { data: updated, error: authError } =
+      await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        user_metadata: {
+          full_name: user.user_metadata?.full_name || defaultName,
+          store_id: store.id,
+          role: "vendor",
+        },
+      });
+
+    if (authError) throw authError;
+
+    return c.json(
+      sendResponse("success", "Setup toko berhasil", {
+        token: c.req.header("Authorization")?.split(" ")[1],
+        user: {
+          id: updated.user.id,
+          email: updated.user.email,
+          ...updated.user.user_metadata,
+        },
+      }),
+    );
+  } catch (error: any) {
+    return c.json(sendResponse("error", error.message), 500);
   }
 });
 

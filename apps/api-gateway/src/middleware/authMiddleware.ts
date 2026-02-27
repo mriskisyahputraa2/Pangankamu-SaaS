@@ -2,21 +2,23 @@ import { supabase } from "../config/supabase.js";
 import type { Context, Next } from "hono";
 import type { User } from "@supabase/supabase-js";
 
-// Definisikan tipe Env agar Middleware tahu apa yang ada di dalam Context
+// 1. Definisikan tipe Variables agar Hono tahu apa yang disimpan di 'c.set'
 type HonoEnv = {
   Variables: {
     user: User;
+    store_id: string | null; // Tempat menyimpan ID Toko otomatis
   };
 };
 
 /**
  * Middleware: requireAuth
- * Tugas: Memastikan user membawa token valid dan menyimpannya ke Context
+ * Tugas: Validasi JWT dan Identifikasi Tenant (Multi-Tenancy) otomatis
  */
 export const requireAuth = async (c: Context<HonoEnv>, next: Next) => {
   try {
     const authHeader = c.req.header("Authorization");
 
+    // Cek apakah header Authorization ada
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return c.json(
         { status: "error", message: "Akses ditolak. Token tidak ditemukan." },
@@ -25,6 +27,8 @@ export const requireAuth = async (c: Context<HonoEnv>, next: Next) => {
     }
 
     const token = authHeader.split(" ")[1];
+
+    // Verifikasi token ke Supabase
     const {
       data: { user },
       error,
@@ -37,10 +41,15 @@ export const requireAuth = async (c: Context<HonoEnv>, next: Next) => {
       );
     }
 
-    // Simpan data user ke dalam konteks Hono
+    const storeId = user.user_metadata?.store_id || null;
+
+    // 3. Simpan data ke dalam konteks Hono (Context Variables)
     c.set("user", user);
+    c.set("store_id", storeId);
+
     await next();
   } catch (err) {
+    console.error("Middleware Error:", err);
     return c.json(
       { status: "error", message: "Terjadi kesalahan sistem keamanan." },
       500,
@@ -50,7 +59,7 @@ export const requireAuth = async (c: Context<HonoEnv>, next: Next) => {
 
 /**
  * Middleware: requireRole
- * Tugas: Mengecek apakah role user ada dalam daftar yang diizinkan
+ * Tugas: Membatasi akses berdasarkan role (misal: super_admin atau vendor)
  */
 export const requireRole = (allowedRoles: string[]) => {
   return async (c: Context<HonoEnv>, next: Next) => {
