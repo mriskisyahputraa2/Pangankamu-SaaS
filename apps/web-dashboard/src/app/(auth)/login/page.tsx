@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { LayoutGrid, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast, Toaster } from "sonner";
@@ -25,17 +26,53 @@ export default function LoginPage() {
       if (res.data.status === "success") {
         // 2. SINKRONISASI PENTING: Login juga di sisi client Supabase
         // agar Cookies terbentuk untuk Middleware
-        await supabase.auth.signInWithPassword({ email, password });
+        console.log("🔐 Starting Supabase client auth...");
+        const { data: authData, error: authError } =
+          await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+        if (authError) {
+          console.error("❌ Supabase auth error:", authError);
+          toast.error("Sinkronisasi session gagal");
+          return;
+        }
+
+        console.log("✅ Supabase auth success:", authData.user?.email);
 
         // 3. Simpan data user ke localStorage
-        localStorage.setItem("user", JSON.stringify(res.data.data));
+        const userData = res.data.data;
+        localStorage.setItem("user", JSON.stringify(userData));
+
+        console.log("💾 User data saved to localStorage:", userData);
 
         toast.success("Login Berhasil!");
 
-        // 4. Redirect langsung ke dashboard tanpa callback
-        setTimeout(() => {
+        // 4. TUNGGU session sync dulu, baru redirect
+        console.log("⏳ Waiting for session to sync...");
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // Increase delay
+
+        // 5. Verify session is actually set
+        const { data: verifySession } = await supabase.auth.getSession();
+        console.log(
+          "🔍 Session verification:",
+          verifySession.session?.user?.email || "No session",
+        );
+
+        // 6. Cek apakah user punya store_id dari metadata
+        const userMetadata = authData.user?.user_metadata;
+        const storeId = userMetadata?.store_id || userData.user?.store_id;
+
+        console.log("🏪 Store check result:", { userMetadata, storeId });
+
+        if (storeId) {
+          console.log("✅ User has store, redirecting to dashboard...");
           window.location.href = "/";
-        }, 1000);
+        } else {
+          console.log("⚠️ User has no store, redirecting to setup...");
+          window.location.href = "/setup-toko";
+        }
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Login gagal.");
@@ -167,6 +204,19 @@ export default function LoginPage() {
               />
               Lanjutkan dengan Google
             </button>
+
+            {/* Link to Signup */}
+            <div className="mt-8 text-center">
+              <p className="text-sm text-slate-500">
+                Belum punya akun?{" "}
+                <Link
+                  href="/signup"
+                  className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors"
+                >
+                  Daftar Sekarang
+                </Link>
+              </p>
+            </div>
           </form>
         </div>
       </div>

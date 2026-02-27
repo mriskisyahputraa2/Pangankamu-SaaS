@@ -27,6 +27,7 @@ export default function SetupTokoPage() {
         toast.success("Ruko Digital Siap!");
 
         // Simpan data user terbaru (yang sudah punya store_id) ke localStorage
+        console.log("💾 Saving updated user data:", res.data.data);
         localStorage.setItem("user", JSON.stringify(res.data.data));
 
         // PENTING: Refresh session di Supabase untuk sync metadata
@@ -38,16 +39,39 @@ export default function SetupTokoPage() {
             console.error("❌ Session refresh error:", refreshError);
           } else {
             console.log("✅ Session refreshed successfully");
+            console.log(
+              "✅ Updated user metadata:",
+              refreshData.session?.user?.user_metadata,
+            );
           }
         } catch (refreshErr) {
           console.error("❌ Session refresh failed:", refreshErr);
         }
 
-        setTimeout(() => {
+        // PERBAIKAN: Tunggu lebih lama agar session benar-benar sync dengan server
+        setTimeout(async () => {
           console.log("🚀 Redirecting to dashboard after setup");
-          // Force reload untuk trigger AuthGuard check
-          window.location.href = "/"; // Redirect ke dashboard utama
-        }, 1500); // Kurangi delay
+
+          // Verifikasi session dulu sebelum redirect
+          const { data: sessionCheck } = await supabase.auth.getSession();
+          console.log(
+            "🔍 Final session check:",
+            sessionCheck.session?.user?.user_metadata,
+          );
+
+          if (sessionCheck.session?.user) {
+            console.log("✅ Session confirmed, redirecting to dashboard");
+            window.location.href = "/"; // Redirect ke dashboard utama
+          } else {
+            console.log(
+              "❌ Session not ready, trying refresh then redirect...",
+            );
+            await supabase.auth.refreshSession();
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 1000);
+          }
+        }, 2500); // Lebih lama untuk session sync
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Terjadi kesalahan sistem.");
