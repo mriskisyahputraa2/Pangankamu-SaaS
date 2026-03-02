@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { categoryService } from "@/services/category-service";
+import { getErrorMessage } from "@/utils/error-handler";
 import {
   AlertDialog,
+  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -11,19 +14,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Trash2, Loader2, AlertTriangle } from "lucide-react";
-import { deleteCategory } from "@/services/category-service";
+import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export function DeleteCategoryDialog({
   categoryId,
   categoryName,
-  storeId,
   onSuccess,
 }: {
   categoryId: string;
   categoryName: string;
-  storeId: string;
   onSuccess: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,13 +32,14 @@ export function DeleteCategoryDialog({
   const handleDelete = async () => {
     setLoading(true);
     try {
-      // Mengirim store_id untuk keamanan multi-tenancy
-      await deleteCategory(categoryId, storeId);
-      toast.success("Kategori dihapus (Aktivitas dicatat di logs)");
-      onSuccess();
+      await categoryService.deleteCategory(categoryId);
+
+      toast.success("Kategori berhasil dihapus!");
       setIsOpen(false);
-    } catch (err: any) {
-      toast.error("Gagal menghapus kategori");
+      onSuccess();
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err, "Gagal menghapus kategori");
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -46,44 +47,30 @@ export function DeleteCategoryDialog({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setIsOpen(true)}
-        className="text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg h-9 w-9"
-      >
-        <Trash2 size={16} />
+      <Button variant="destructive" size="sm" onClick={() => setIsOpen(true)}>
+        <Trash2 className="h-4 w-4 mr-1" />
+        Hapus
       </Button>
+
       <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-        <AlertDialogContent className="rounded-[24px] border-none p-6 shadow-2xl">
-          <AlertDialogHeader className="flex flex-col items-center text-center">
-            <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-              <AlertTriangle size={32} className="text-red-600" />
-            </div>
-            <AlertDialogTitle className="text-xl font-bold text-slate-900">
-              Hapus Kategori?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-500">
-              Menghapus kategori{" "}
-              <span className="font-bold text-slate-900">"{categoryName}"</span>{" "}
-              akan dicatat di log sistem Pangankamu. Tindakan ini permanen.
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Kategori</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus kategori "{categoryName}"?
+              Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-6 flex gap-2">
-            <AlertDialogCancel className="flex-1 rounded-xl h-12 font-semibold">
-              Batal
-            </AlertDialogCancel>
-            <Button
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>Batal</AlertDialogCancel>
+            <AlertDialogAction
               onClick={handleDelete}
               disabled={loading}
-              className="flex-1 bg-red-600 hover:bg-red-700 rounded-xl h-12 font-bold shadow-lg shadow-red-100"
+              className="bg-red-600 hover:bg-red-700"
             >
-              {loading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                "Ya, Hapus Sekarang"
-              )}
-            </Button>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Hapus
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

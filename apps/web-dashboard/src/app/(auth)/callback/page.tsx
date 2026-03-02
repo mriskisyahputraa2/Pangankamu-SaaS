@@ -23,7 +23,6 @@ export default function AuthCallbackPage() {
         } = await supabase.auth.getSession();
 
         if (error || !session) {
-          console.error("Auth error:", error);
           window.location.href = "/login";
           return;
         }
@@ -53,7 +52,6 @@ export default function AuthCallbackPage() {
 
         isDone.current = true;
       } catch (error) {
-        console.error("❌ Callback error:", error);
         window.location.href = "/login";
       }
     };

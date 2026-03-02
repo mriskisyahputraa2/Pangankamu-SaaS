@@ -9,6 +9,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,51 +24,81 @@ import {
   ChevronLeft,
   ChevronRight,
   Pencil,
-  LayoutGrid,
 } from "lucide-react";
+import { categoryService } from "@/services/category-service";
 import { Category } from "@/types";
-import { getCategories } from "@/services/category-service";
+import { getErrorMessage } from "@/utils/error-handler";
 import { AddCategoryModal } from "@/components/categories/add-category-modal";
+import { EditCategoryModal } from "@/components/categories/edit-category-modal";
+import { DeleteCategoryDialog } from "@/components/categories/delete-category-modal";
 import { toast } from "sonner";
 
 export default function CategoriesPage() {
-  const [activeStoreId, setActiveStoreId] = useState<string>("");
+  // --- Data States ---
   const [categories, setCategories] = useState<Category[]>([]);
-  const [totalData, setTotalData] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // --- Pagination & Filter States ---
   const [currentPage, setCurrentPage] = useState(1);
+  const [limit, setLimit] = useState("10");
+  const [totalData, setTotalData] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    const storedData = localStorage.getItem("user");
-    if (storedData) {
-      const parsed = JSON.parse(storedData);
-      const storeId =
-        parsed.data?.user?.store_id || parsed.user?.store_id || parsed.store_id;
-      if (storeId) setActiveStoreId(storeId);
-    }
-  }, []);
+  // --- Modal States ---
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null,
+  );
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
+  // Fungsi Fetch Data (Sesuai Struktur Clean Backend)
   const fetchCategories = useCallback(async () => {
-    if (!activeStoreId) return;
     setLoading(true);
     try {
-      const res = await getCategories(
-        activeStoreId,
+      // Karena backend sekarang membaca store_id dari Token JWT di Header
+      const res = await categoryService.getCategories(
         currentPage,
-        10,
+        parseInt(limit),
         searchTerm,
       );
+
       if (res.status === "success") {
-        setCategories(res.data);
+        setCategories(res.data || []);
         setTotalData(res.meta?.total_data || 0);
+        setTotalPages(res.meta?.total_pages || 1);
       }
     } catch (err) {
-      toast.error("Gagal memuat kategori");
+      // Menggunakan Error Handler yang sudah kita buat sebelumnya
+      toast.error("Gagal memuat daftar kategori");
     } finally {
       setLoading(false);
     }
-  }, [activeStoreId, currentPage, searchTerm]);
+  }, [currentPage, limit, searchTerm]);
+
+  // Function untuk refresh data dan kembali ke halaman 1
+  const refreshCategoriesAndResetPage = useCallback(async () => {
+    // Immediate reset to page 1
+    setCurrentPage(1);
+
+    // Force refresh dengan data page 1
+    setLoading(true);
+    try {
+      const res = await categoryService.getCategories(
+        1,
+        parseInt(limit),
+        searchTerm,
+      );
+      if (res.status === "success") {
+        setCategories(res.data || []);
+        setTotalData(res.meta?.total_data || 0);
+        setTotalPages(res.meta?.total_pages || 1);
+      }
+    } catch (err) {
+      toast.error("Gagal memuat daftar kategori");
+    } finally {
+      setLoading(false);
+    }
+  }, [limit, searchTerm]);
 
   useEffect(() => {
     fetchCategories();
@@ -69,34 +106,55 @@ export default function CategoriesPage() {
 
   return (
     <div className="w-full space-y-6 font-jakarta">
+      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Kategori Produk</h1>
           <p className="text-sm text-slate-500">
-            Grup barang untuk isolasi tenant SaaS.
+            Daftar kategori untuk mengelompokkan produk Anda. Tambah, edit, atau
+            hapus
           </p>
         </div>
-        {activeStoreId && (
-          <AddCategoryModal
-            storeId={activeStoreId}
-            onSuccess={fetchCategories}
+        <AddCategoryModal onSuccess={refreshCategoriesAndResetPage} />
+      </div>
+
+      {/* Search and Filter */}
+      <div className="flex gap-4 items-center">
+        <div className="relative flex-1">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            size={18}
           />
-        )}
+          <Input
+            placeholder="Cari kategori..."
+            className="pl-10 h-11 rounded-xl"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
+        <Select
+          value={limit}
+          onValueChange={(val) => {
+            setLimit(val);
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="w-[130px] h-11 rounded-xl">
+            <SelectValue placeholder="Baris" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="5">5 Baris</SelectItem>
+            <SelectItem value="10">10 Baris</SelectItem>
+            <SelectItem value="20">20 Baris</SelectItem>
+            <SelectItem value="50">50 Baris</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <div className="relative">
-        <Search
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          size={18}
-        />
-        <Input
-          placeholder="Cari kategori..."
-          className="pl-10 h-11 rounded-xl"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-
+      {/* Table */}
       <div className="border border-slate-100 rounded-2xl bg-white shadow-sm overflow-hidden">
         <Table>
           <TableHeader className="bg-slate-50/50">
@@ -126,22 +184,83 @@ export default function CategoriesPage() {
               categories.map((item, index) => (
                 <TableRow key={item.id}>
                   <TableCell className="text-center text-slate-400">
-                    {(currentPage - 1) * 10 + index + 1}
+                    {(currentPage - 1) * parseInt(limit) + index + 1}
                   </TableCell>
                   <TableCell className="font-bold text-slate-900">
                     {item.name}
                   </TableCell>
                   <TableCell className="text-right pr-4">
-                    <Button variant="ghost" size="icon">
-                      <Pencil size={16} />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 border-yellow-200"
+                        onClick={() => {
+                          setSelectedCategory(item);
+                          setIsEditOpen(true);
+                        }}
+                      >
+                        <Pencil size={16} />
+                      </Button>
+                      <DeleteCategoryDialog
+                        categoryId={item.id}
+                        categoryName={item.name}
+                        onSuccess={fetchCategories}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
+
+        {/* PAGINATION: Navigasi simple di bawah table */}
+        <div className="p-4 border-t border-slate-50 flex items-center justify-between bg-white">
+          <p className="text-xs text-slate-500">
+            Menampilkan <span className="font-bold">{categories.length}</span>{" "}
+            dari <span className="font-bold">{totalData}</span> data
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg h-9 px-3"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((prev) => prev - 1)}
+            >
+              <ChevronLeft size={16} />
+            </Button>
+
+            <span className="text-xs font-bold px-3 py-1 bg-slate-100 rounded-md">
+              {currentPage} / {totalPages}
+            </span>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg h-9 px-3"
+              disabled={currentPage === totalPages || totalPages === 0}
+              onClick={() => setCurrentPage((prev) => prev + 1)}
+            >
+              <ChevronRight size={16} />
+            </Button>
+          </div>
+        </div>
       </div>
+
+      {/* Edit Modal */}
+      {selectedCategory && (
+        <EditCategoryModal
+          category={selectedCategory}
+          isOpen={isEditOpen}
+          onClose={() => {
+            setIsEditOpen(false);
+            setSelectedCategory(null);
+          }}
+          onSuccess={fetchCategories}
+        />
+      )}
     </div>
   );
 }

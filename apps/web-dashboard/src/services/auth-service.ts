@@ -35,7 +35,6 @@ export const authService = {
 
     // Jika error PGRST116 artinya data tidak ditemukan (user belum punya toko)
     if (error && error.code !== "PGRST116") {
-      console.error("Gagal memeriksa data toko:", error.message);
       throw error;
     }
 
@@ -61,7 +60,6 @@ export const authService = {
 
       return session;
     } catch (err) {
-      console.error("Gagal refresh session:", err);
       return null;
     }
   },
@@ -76,7 +74,6 @@ export const authService = {
       localStorage.removeItem("user");
       window.location.href = "/login";
     } catch (err) {
-      console.error("Logout error:", err);
       // Tetap paksa hapus local data jika API gagal
       localStorage.removeItem("user");
       window.location.href = "/login";

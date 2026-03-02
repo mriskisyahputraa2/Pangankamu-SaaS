@@ -75,7 +75,7 @@ export default function DashboardPage() {
           setRecentItems(items.slice(0, 5));
         }
       } catch (err) {
-        console.error("Dashboard error:", err);
+        // Dashboard data loading failed
       } finally {
         setLoading(false);
       }
