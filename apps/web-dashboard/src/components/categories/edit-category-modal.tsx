@@ -1,23 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { categoryService } from "@/services/category-service";
+import { getErrorMessage } from "@/utils/error-handler";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil, Loader2 } from "lucide-react";
-import { updateCategory } from "@/services/category-service";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Category } from "@/types";
 
 interface EditProps {
-  category: any;
-  storeId: string;
+  category: Category;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -25,7 +25,6 @@ interface EditProps {
 
 export function EditCategoryModal({
   category,
-  storeId,
   isOpen,
   onClose,
   onSuccess,
@@ -39,59 +38,76 @@ export function EditCategoryModal({
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim()) {
+      toast.error("Nama kategori tidak boleh kosong");
+      return;
+    }
+
+    if (name.trim() === category.name) {
+      toast.info("Tidak ada perubahan yang dibuat");
+      onClose();
+      return;
+    }
+
     setLoading(true);
     try {
-      // Mengirim ID kategori dan store_id untuk validasi
-      await updateCategory(category.id, { store_id: storeId, name });
-      toast.success("Perubahan kategori disimpan");
-      onSuccess();
+      await categoryService.updateCategory(category.id, name.trim());
+
+      toast.success("Kategori berhasil diperbarui!");
       onClose();
-    } catch (err: any) {
-      toast.error("Gagal memperbarui kategori");
+      onSuccess();
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err, "Gagal memperbarui kategori");
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleClose = () => {
+    onClose();
+    setName(category?.name || "");
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="rounded-[24px] border-none p-0 overflow-hidden bg-white shadow-2xl">
-        <div className="bg-slate-800 p-6 text-white">
-          <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-sm">
-            <Pencil size={24} />
-          </div>
-          <DialogTitle className="text-2xl font-bold text-white">
-            Edit Kategori
-          </DialogTitle>
-          <DialogDescription className="text-slate-300 text-sm mt-1">
-            Perbarui nama pengelompokan produk Anda[cite: 8].
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Kategori</DialogTitle>
+          <DialogDescription>
+            Perbarui nama kategori "{category?.name}".
           </DialogDescription>
-        </div>
-        <form onSubmit={handleUpdate} className="p-6 space-y-4">
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
-              Nama Kategori
-            </label>
+        </DialogHeader>
+
+        <form onSubmit={handleUpdate} className="space-y-4">
+          <div>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="rounded-xl h-12 border-slate-100"
-              required
+              placeholder="Nama kategori..."
+              disabled={loading}
             />
           </div>
-          <DialogFooter className="pt-2">
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={loading}
+            >
+              Batal
+            </Button>
             <Button
               type="submit"
-              disabled={loading}
-              className="w-full bg-slate-800 hover:bg-slate-900 rounded-xl h-12 font-bold"
+              disabled={
+                loading || !name.trim() || name.trim() === category?.name
+              }
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold"
             >
-              {loading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                "Simpan Perubahan"
-              )}
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Simpan
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

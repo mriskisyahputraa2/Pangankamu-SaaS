@@ -1,39 +1,45 @@
 import { api } from "@/lib/api";
 import { Category, ApiResponse } from "@/types";
+import axios from "axios";
 
 /**
  * Mengambil Daftar Kategori (Read)
- * Mengisolasi data antar toko untuk keamanan SaaS
+ * Backend mengambil store_id dari JWT middleware otomatis
  */
 export const getCategories = async (
-  storeId: string,
   page: number,
   limit: number,
   search: string = "",
 ): Promise<ApiResponse<Category[]>> => {
-  const response = await api.get(`/categories`, {
-    params: {
-      store_id: storeId, // Filter wajib Multi-Tenancy
-      page,
-      limit,
-      search,
-    },
-  });
-  return response.data;
+  try {
+    const response = await api.get(`/categories`, {
+      params: {
+        page,
+        limit,
+        search,
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 };
 
 /**
  * Menambah Kategori Baru (Create)
- * Mencatat store_id agar kategori tidak muncul di toko lain
+ * store_id diambil dari JWT di backend
  */
 export const createCategory = async (data: {
-  store_id: string;
   name: string;
 }): Promise<ApiResponse<Category>> => {
-  const response = await api.post("/categories", data, {
-    params: { store_id: data.store_id }, // Kirim store_id di URL agar backend mudah baca
-  });
-  return response.data;
+  try {
+    const response = await api.post("/categories", data);
+    return response.data;
+  } catch (error) {
+    // Re-throw error to be handled by component
+    throw error;
+  }
 };
 
 /**
@@ -41,15 +47,14 @@ export const createCategory = async (data: {
  */
 export const updateCategory = async (
   id: string,
-  data: {
-    store_id: string;
-    name: string;
-  },
+  name: string,
 ): Promise<ApiResponse<Category>> => {
-  const response = await api.put(`/categories/${id}`, data, {
-    params: { store_id: data.store_id }, // Validasi kepemilikan tenant
-  });
-  return response.data;
+  try {
+    const response = await api.put(`/categories/${id}`, { name });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
 };
 
 /**
@@ -57,10 +62,20 @@ export const updateCategory = async (
  */
 export const deleteCategory = async (
   id: string,
-  storeId: string,
 ): Promise<ApiResponse<null>> => {
-  const response = await api.delete(`/categories/${id}`, {
-    params: { store_id: storeId }, // Pastikan hanya pemilik yang bisa hapus
-  });
-  return response.data;
+  try {
+    const response = await api.delete(`/categories/${id}`);
+    return response.data;
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Export default service object
+export const categoryService = {
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
 };

@@ -21,7 +21,7 @@ api.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
-      console.error("Gagal parse token:", error);
+      // Token parsing failed, continue without auth header
     }
   }
   return config;

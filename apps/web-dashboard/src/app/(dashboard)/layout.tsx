@@ -1,4 +1,5 @@
 import Sidebar from "@/components/layout/Sidebar";
+import { Toaster } from "sonner";
 
 export default function DashboardLayout({
   children,
@@ -14,6 +15,9 @@ export default function DashboardLayout({
           <div className="p-6 lg:p-10 max-w-full">{children}</div>
         </div>
       </main>
+
+      {/* Toast Notifications untuk Dashboard */}
+      <Toaster position="top-center" richColors />
     </div>
   );
 }

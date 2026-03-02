@@ -41,9 +41,6 @@ const SidebarContent = ({ setOpen }: { setOpen?: (open: boolean) => void }) => {
     try {
       // 1. Sign out dari Supabase
       const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("Supabase logout error:", error);
-      }
 
       // 2. Clear localStorage
       localStorage.removeItem("user");
@@ -52,7 +49,6 @@ const SidebarContent = ({ setOpen }: { setOpen?: (open: boolean) => void }) => {
       // 3. Redirect ke login dengan force reload
       window.location.href = "/login";
     } catch (error) {
-      console.error("Gagal logout:", error);
       // Tetap clear localStorage dan redirect meskipun error
       localStorage.removeItem("user");
       localStorage.clear();
