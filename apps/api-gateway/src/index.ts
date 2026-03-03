@@ -5,7 +5,7 @@ import { logger } from "hono/logger";
 import type { User } from "@supabase/supabase-js";
 
 // Import Routes
-import productRoutes from "./routes/product.js";
+import productRoute from "./routes/product.js";
 import categoryRoute from "./routes/category.js";
 import auth from "./routes/auth.js";
 
@@ -64,7 +64,7 @@ app.get("/admin/dashboard", requireAuth, requireRole(["super_admin"]), (c) => {
 // --- LIST ROUTES ---
 app.route("/auth", auth);
 app.route("/categories", categoryRoute);
-app.route("/products", productRoutes);
+app.route("/products", productRoute);
 
 // Start Server
 serve({ fetch: app.fetch, port: 3000 }, (info) => {
