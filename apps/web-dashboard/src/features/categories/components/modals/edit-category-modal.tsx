@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { categoryService } from "@/services/category-service";
+import { categoryService } from "../../services/categoryService";
 import { getErrorMessage } from "@/utils/error-handler";
 import {
   Dialog,
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Category } from "@/types";
+import { Category } from "../../types/category.types";
 
 interface EditProps {
   category: Category;

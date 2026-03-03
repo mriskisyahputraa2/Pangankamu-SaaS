@@ -25,12 +25,12 @@ import {
   ChevronRight,
   Pencil,
 } from "lucide-react";
-import { categoryService } from "@/services/category-service";
-import { Category } from "@/types";
+import { categoryService } from "@/features/categories/services/categoryService";
+import { Category } from "@/features/categories/types/category.types";
 import { getErrorMessage } from "@/utils/error-handler";
-import { AddCategoryModal } from "@/components/categories/add-category-modal";
-import { EditCategoryModal } from "@/components/categories/edit-category-modal";
-import { DeleteCategoryDialog } from "@/components/categories/delete-category-modal";
+import { AddCategoryModal } from "@/features/categories/components/modals/add-category-modal";
+import { EditCategoryModal } from "@/features/categories/components/modals/edit-category-modal";
+import { DeleteCategoryDialog } from "@/features/categories/components/modals/delete-category-modal";
 import { toast } from "sonner";
 
 export default function CategoriesPage() {

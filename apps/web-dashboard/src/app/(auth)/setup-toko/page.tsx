@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
-import authService from "@/services/auth-service";
+import { authService } from "@/features/auth";
 
 export default function SetupTokoPage() {
   const [storeName, setStoreName] = useState("");

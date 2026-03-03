@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Trash2, Loader2, AlertTriangle } from "lucide-react";
-import { deleteProduct } from "@/services/product-service";
+import { deleteProduct } from "../services/productService";
 import { toast } from "sonner";
 
 export function DeleteProductDialog({

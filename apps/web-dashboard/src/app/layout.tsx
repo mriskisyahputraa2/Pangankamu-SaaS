@@ -1,6 +1,6 @@
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import AuthGuard from "@/components/AuthGuard";
+import AuthGuard from "@/features/auth/components/AuthGuard";
 
 // Konfigurasi font Jakarta Sans
 const jakarta = Plus_Jakarta_Sans({

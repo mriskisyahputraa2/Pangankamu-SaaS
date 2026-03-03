@@ -7,7 +7,7 @@ import { toast, Toaster } from "sonner";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
-import authService from "@/services/auth-service";
+import { authService } from "@/features/auth";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
