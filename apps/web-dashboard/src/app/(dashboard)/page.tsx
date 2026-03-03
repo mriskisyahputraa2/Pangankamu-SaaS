@@ -9,7 +9,7 @@ import {
   Package,
   Loader2,
 } from "lucide-react";
-import { getProducts } from "@/services/product-service";
+import { getProducts } from "@/features/products/services/productService";
 import { toast } from "sonner";
 
 const StatCard = ({ title, value, icon: Icon, color, detail }: any) => (

@@ -41,8 +41,8 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
-} from "@/services/product-service";
-import { getCategories } from "@/services/category-service";
+} from "@/features/products/services/productService";
+import { categoryService } from "@/features/categories";
 import { toast } from "sonner";
 
 export default function ProductsPage() {
@@ -86,7 +86,7 @@ export default function ProductsPage() {
           parseInt(rowsPerPage),
           searchTerm,
         ),
-        getCategories(activeStoreId, 1, 100, ""),
+        categoryService.getCategories(1, 100, ""),
       ]);
       if (prodRes.status === "success") {
         setProducts(prodRes.data);

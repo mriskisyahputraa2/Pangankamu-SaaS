@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
-import { Category, ApiResponse } from "@/types";
-import axios from "axios";
+import { ApiResponse } from "@/types";
+import { Category } from "../types/category.types";
 
 /**
  * Mengambil Daftar Kategori (Read)

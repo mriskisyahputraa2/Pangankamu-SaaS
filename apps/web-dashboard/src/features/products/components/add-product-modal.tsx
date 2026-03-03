@@ -18,24 +18,13 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil, Loader2 } from "lucide-react";
-import { updateProduct } from "@/services/product-service";
-import { getCategories } from "@/services/category-service";
+import { Plus, Package, Loader2 } from "lucide-react";
+import { createProduct } from "../services/productService";
+import { categoryService } from "@/features/categories";
 import { toast } from "sonner";
 
-interface EditProps {
-  product: any;
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
-export function EditProductModal({
-  product,
-  isOpen,
-  onClose,
-  onSuccess,
-}: EditProps) {
+export function AddProductModal({ onSuccess }: { onSuccess: () => void }) {
+  const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [formData, setFormData] = useState({
@@ -46,22 +35,16 @@ export function EditProductModal({
   });
 
   useEffect(() => {
-    if (product) {
-      setFormData({
-        name: product.name,
-        category: product.category,
-        price: product.price.toString(),
-        stock: product.stock.toString(),
-      });
+    if (isOpen) {
       const fetchCats = async () => {
-        const res = await getCategories(1, 100);
+        const res = await categoryService.getCategories(1, 100);
         if (res.status === "success") setCategories(res.data);
       };
       fetchCats();
     }
-  }, [product]);
+  }, [isOpen]);
 
-  const handleUpdate = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -70,35 +53,43 @@ export function EditProductModal({
         price: parseInt(formData.price),
         stock: parseInt(formData.stock),
       };
-      await updateProduct(product.id, payload);
-      toast.success("Produk diperbarui");
+      const res = await createProduct(payload);
+      toast.success(res.message || "Produk berhasil ditambah");
+      setIsOpen(false);
+      setFormData({ name: "", category: "", price: "", stock: "" });
       onSuccess();
-      onClose();
     } catch (err: any) {
-      toast.error("Gagal memperbarui produk");
+      toast.error(err.response?.data?.message || "Gagal menambah produk");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Button
+        onClick={() => setIsOpen(true)}
+        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl gap-2 h-11 px-5 shadow-lg shadow-emerald-100"
+      >
+        <Plus size={18} /> Tambah Produk
+      </Button>
       <DialogContent className="rounded-[24px] border-none sm:max-w-[425px] p-0 overflow-hidden bg-white shadow-2xl">
-        <div className="bg-slate-800 p-6 text-white">
+        <div className="bg-emerald-600 p-6 text-white">
           <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-sm">
-            <Pencil size={24} />
+            <Package size={24} />
           </div>
-          <DialogTitle className="text-2xl font-bold">Edit Produk</DialogTitle>
-          <DialogDescription className="text-slate-300 text-sm mt-1">
-            Ubah informasi stok pangan Anda.
+          <DialogTitle className="text-2xl font-bold">Produk Baru</DialogTitle>
+          <DialogDescription className="text-emerald-100 text-sm mt-1">
+            Lengkapi detail produk pangan Toko Rizki jaya.
           </DialogDescription>
         </div>
-        <form onSubmit={handleUpdate} className="p-6 space-y-4">
+        <form onSubmit={handleSave} className="p-6 space-y-4">
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">
               Nama Produk
             </label>
             <Input
+              placeholder="Ayam Potong"
               value={formData.name}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
@@ -116,7 +107,7 @@ export function EditProductModal({
               value={formData.category}
             >
               <SelectTrigger className="rounded-xl h-11 border-slate-100">
-                <SelectValue />
+                <SelectValue placeholder="Pilih Kategori" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
                 {categories.map((cat) => (
@@ -161,13 +152,9 @@ export function EditProductModal({
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-slate-800 hover:bg-slate-900 rounded-xl h-12 font-bold"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 rounded-xl h-12 font-bold"
             >
-              {loading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                "Simpan Perubahan"
-              )}
+              {loading ? <Loader2 className="animate-spin" /> : "Simpan Produk"}
             </Button>
           </DialogFooter>
         </form>

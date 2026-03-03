@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import authService from "@/services/auth-service";
+import { authService } from "@/features/auth";
 
 export default function AuthCallbackPage() {
   const isDone = useRef(false);

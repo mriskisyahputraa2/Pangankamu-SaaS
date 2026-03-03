@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { categoryService } from "@/services/category-service";
+import { categoryService } from "../../services/categoryService";
 import { getErrorMessage } from "@/utils/error-handler";
 import {
   Dialog,
