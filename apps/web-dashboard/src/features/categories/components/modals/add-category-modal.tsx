@@ -56,15 +56,17 @@ export function AddCategoryModal({ onSuccess }: { onSuccess: () => void }) {
     <>
       <Button
         onClick={() => setIsOpen(true)}
-        className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold"
+        className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold w-full sm:w-auto text-sm"
+        size="sm"
       >
-        Tambah Kategori
+        <span className="hidden sm:inline">Tambah Kategori</span>
+        <span className="sm:hidden">+ Kategori</span>
       </Button>{" "}
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md mx-auto">
           <DialogHeader>
-            <DialogTitle>Tambah Kategori Baru</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg">Tambah Kategori Baru</DialogTitle>
+            <DialogDescription className="text-sm">
               Masukkan nama kategori yang ingin ditambahkan.
             </DialogDescription>
           </DialogHeader>
@@ -76,21 +78,23 @@ export function AddCategoryModal({ onSuccess }: { onSuccess: () => void }) {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Nama kategori..."
                 disabled={loading}
+                className="h-11"
               />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleClose}
                 disabled={loading}
+                className="w-full sm:w-auto"
               >
                 Batal
               </Button>
               <Button
                 type="submit"
                 disabled={loading || !name.trim()}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold w-full sm:w-auto"
               >
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Simpan

@@ -22,7 +22,7 @@ export function CategoryFilters({
   onLimitChange,
 }: CategoryFiltersProps) {
   return (
-    <div className="flex gap-4 items-center">
+    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
       <div className="relative flex-1">
         <Search
           className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -30,13 +30,13 @@ export function CategoryFilters({
         />
         <Input
           placeholder="Cari kategori..."
-          className="pl-10 h-11 rounded-xl"
+          className="pl-10 h-11 rounded-xl w-full"
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
         />
       </div>
       <Select value={limit} onValueChange={onLimitChange}>
-        <SelectTrigger className="w-[130px] h-11 rounded-xl">
+        <SelectTrigger className="w-full sm:w-32.5 h-11 rounded-xl">
           <SelectValue placeholder="Baris" />
         </SelectTrigger>
         <SelectContent>

@@ -47,26 +47,35 @@ export function DeleteCategoryDialog({
 
   return (
     <>
-      <Button variant="destructive" size="sm" onClick={() => setIsOpen(true)}>
-        <Trash2 className="h-4 w-4 mr-1" />
-        Hapus
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => setIsOpen(true)}
+        className="h-8 px-3"
+      >
+        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+        <span className="hidden sm:inline">Hapus</span>
       </Button>
 
       <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[95vw] max-w-md mx-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Kategori</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-lg">
+              Hapus Kategori
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
               Apakah Anda yakin ingin menghapus kategori "{categoryName}"?
               Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={loading}>Batal</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel disabled={loading} className="w-full sm:w-auto">
+              Batal
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={loading}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Hapus

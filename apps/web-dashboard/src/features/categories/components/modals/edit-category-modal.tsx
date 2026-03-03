@@ -71,10 +71,10 @@ export function EditCategoryModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent className="w-[95vw] max-w-md mx-auto">
         <DialogHeader>
-          <DialogTitle>Edit Kategori</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg">Edit Kategori</DialogTitle>
+          <DialogDescription className="text-sm">
             Perbarui nama kategori "{category?.name}".
           </DialogDescription>
         </DialogHeader>
@@ -86,14 +86,16 @@ export function EditCategoryModal({
               onChange={(e) => setName(e.target.value)}
               placeholder="Nama kategori..."
               disabled={loading}
+              className="h-11"
             />
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
               disabled={loading}
+              className="w-full sm:w-auto"
             >
               Batal
             </Button>
@@ -102,7 +104,7 @@ export function EditCategoryModal({
               disabled={
                 loading || !name.trim() || name.trim() === category?.name
               }
-              className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold"
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold w-full sm:w-auto"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Simpan

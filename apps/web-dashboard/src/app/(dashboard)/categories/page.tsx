@@ -29,17 +29,21 @@ export default function CategoriesPage() {
     useCategoryModals();
 
   return (
-    <div className="w-full space-y-6 font-jakarta">
+    <div className="w-full space-y-4 md:space-y-6 font-jakarta px-4 md:px-0">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Kategori Produk</h1>
-          <p className="text-sm text-slate-500">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="flex-1">
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">
+            Kategori Produk
+          </h1>
+          <p className="text-xs md:text-sm text-slate-500 mt-1">
             Daftar kategori untuk mengelompokkan produk Anda. Tambah, edit, atau
             hapus
           </p>
         </div>
-        <AddCategoryModal onSuccess={refreshAndResetPage} />
+        <div className="shrink-0">
+          <AddCategoryModal onSuccess={refreshAndResetPage} />
+        </div>
       </div>
 
       {/* Search and Filter */}
