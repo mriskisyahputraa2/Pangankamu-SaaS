@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import { updateProduct } from "../../services/productService";
+import { updateProduct } from "../services/productService";
 import { categoryService } from "@/features/categories";
 import { getErrorMessage } from "@/utils/error-handler";
 import { toast } from "sonner";
@@ -39,7 +39,6 @@ interface EditProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  storeId: string;
 }
 
 export function EditProductModal({
@@ -47,7 +46,6 @@ export function EditProductModal({
   isOpen,
   onClose,
   onSuccess,
-  storeId,
 }: EditProductModalProps) {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
@@ -86,20 +84,19 @@ export function EditProductModal({
           : "",
       });
 
+      const fetchCategories = async () => {
+        try {
+          const res = await categoryService.getCategories(1, 100, "");
+          if (res.status === "success") {
+            setCategories(res.data || []);
+          }
+        } catch (err) {
+          console.error("Failed to fetch categories:", err);
+        }
+      };
       fetchCategories();
     }
   }, [product, isOpen]);
-
-  const fetchCategories = async () => {
-    try {
-      const res = await categoryService.getCategories(1, 100, "");
-      if (res.status === "success") {
-        setCategories(res.data || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch categories:", err);
-    }
-  };
 
   const handlePriceChange = (
     field: "price_base" | "price_sell",
@@ -144,16 +141,10 @@ export function EditProductModal({
       return;
     }
 
-    // Get store ID
-    if (!storeId) {
-      toast.error("Store ID tidak ditemukan");
-      return;
-    }
-
     setLoading(true);
     try {
       const payload = {
-        store_id: storeId,
+        store_id: product.store_id, // Add store_id from existing product
         name: formData.name.trim(),
         category_id: formData.category_id,
         price_base: Number(formData.price_base) || 0,
@@ -209,81 +200,99 @@ export function EditProductModal({
         </DialogHeader>
 
         <form onSubmit={handleUpdate} className="space-y-4">
-          <Input
-            placeholder="Nama produk..."
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            disabled={loading}
-            className="h-11"
-          />
-
-          <Select
-            value={formData.category_id}
-            onValueChange={(value) =>
-              setFormData({ ...formData, category_id: value })
-            }
-            disabled={loading}
-          >
-            <SelectTrigger className="h-11 rounded-xl">
-              <SelectValue placeholder="Pilih kategori" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <div className="grid grid-cols-2 gap-3">
+          <div>
             <Input
-              placeholder="Harga modal (Rp)"
-              value={displayValues.price_base}
-              onChange={(e) => handlePriceChange("price_base", e.target.value)}
-              disabled={loading}
-              className="h-11"
-            />
-            <Input
-              placeholder="Harga jual (Rp)"
-              value={displayValues.price_sell}
-              onChange={(e) => handlePriceChange("price_sell", e.target.value)}
+              placeholder="Nama produk..."
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               disabled={loading}
               className="h-11"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              type="number"
-              placeholder="Stok"
-              value={formData.stock}
-              onChange={(e) =>
-                setFormData({ ...formData, stock: e.target.value })
-              }
-              disabled={loading}
-              className="h-11"
-              min="0"
-            />
+          <div>
             <Select
-              value={formData.unit}
+              value={formData.category_id}
               onValueChange={(value) =>
-                setFormData({ ...formData, unit: value })
+                setFormData({ ...formData, category_id: value })
               }
               disabled={loading}
             >
               <SelectTrigger className="h-11 rounded-xl">
-                <SelectValue placeholder="Unit" />
+                <SelectValue placeholder="Pilih kategori" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pcs">Pcs</SelectItem>
-                <SelectItem value="kg">Kg</SelectItem>
-                <SelectItem value="gram">Gram</SelectItem>
-                <SelectItem value="liter">Liter</SelectItem>
-                <SelectItem value="ml">ML</SelectItem>
-                <SelectItem value="pack">Pack</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Input
+                placeholder="Harga modal (Rp)"
+                value={displayValues.price_base}
+                onChange={(e) =>
+                  handlePriceChange("price_base", e.target.value)
+                }
+                disabled={loading}
+                className="h-11"
+              />
+            </div>
+            <div>
+              <Input
+                placeholder="Harga jual (Rp)"
+                value={displayValues.price_sell}
+                onChange={(e) =>
+                  handlePriceChange("price_sell", e.target.value)
+                }
+                disabled={loading}
+                className="h-11"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Input
+                type="number"
+                placeholder="Stok"
+                value={formData.stock}
+                onChange={(e) =>
+                  setFormData({ ...formData, stock: e.target.value })
+                }
+                disabled={loading}
+                className="h-11"
+                min="0"
+              />
+            </div>
+            <div>
+              <Select
+                value={formData.unit}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, unit: value })
+                }
+                disabled={loading}
+              >
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue placeholder="Unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pcs">Pcs</SelectItem>
+                  <SelectItem value="kg">Kg</SelectItem>
+                  <SelectItem value="gram">Gram</SelectItem>
+                  <SelectItem value="liter">Liter</SelectItem>
+                  <SelectItem value="ml">ML</SelectItem>
+                  <SelectItem value="pack">Pack</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
