@@ -88,6 +88,7 @@ export default function ProductsPage() {
           isOpen={isEditOpen}
           onClose={closeEditModal}
           onSuccess={fetchProducts}
+          storeId={activeStoreId}
         />
       )}
     </div>
