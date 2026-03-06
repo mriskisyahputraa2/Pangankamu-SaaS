@@ -37,7 +37,7 @@ export default function SetupTokoPage() {
         await authService.refreshAndGetSession();
 
         setTimeout(() => {
-          window.location.href = "/";
+          window.location.href = "/dashboard";
         }, 1500);
       }
     } catch (error: any) {

@@ -42,7 +42,7 @@ export default function AuthCallbackPage() {
 
           // Beri jeda 1 detik agar proses sinkronisasi sempurna
           setTimeout(() => {
-            window.location.href = "/";
+            window.location.href = "/dashboard";
           }, 1000);
         } else {
           // Jika belum punya toko (user Google baru), lempar ke setup

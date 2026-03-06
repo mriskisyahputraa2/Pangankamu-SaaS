@@ -25,7 +25,7 @@ import { supabase } from "@/lib/supabase";
 
 // Konfigurasi Menu Navigasi
 const menuItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Kategori", href: "/categories", icon: Shapes }, // Ikon Shapes lebih cocok untuk pengelompokan
   { name: "Produk", href: "/products", icon: ShoppingBasket },
   { name: "Pesanan", href: "/orders", icon: ClipboardList },

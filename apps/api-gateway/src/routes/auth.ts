@@ -55,4 +55,19 @@ auth.post("/setup-store", requireAuth, async (c) => {
   }
 });
 
+// 5. GET STORE PROFILE (Get current user's store data)
+auth.get("/store-profile", requireAuth, async (c) => {
+  try {
+    const user = c.get("user");
+    const result = await authService.getStoreProfile(user.id);
+
+    return c.json(
+      sendResponse("success", "Store profile retrieved", result),
+      200,
+    );
+  } catch (error: any) {
+    return c.json(sendResponse("error", error.message), 404);
+  }
+});
+
 export default auth;

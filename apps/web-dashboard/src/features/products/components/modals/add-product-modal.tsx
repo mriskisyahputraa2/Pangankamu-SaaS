@@ -72,7 +72,8 @@ export function AddProductModal({
         setCategories(res.data || []);
       }
     } catch (err) {
-      console.error("Failed to fetch categories:", err);
+      // Set empty categories if fetch fails to prevent form break
+      setCategories([]);
     }
   };
 
