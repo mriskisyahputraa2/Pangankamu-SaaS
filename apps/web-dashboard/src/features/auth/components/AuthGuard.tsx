@@ -46,7 +46,7 @@ export default function AuthGuard({ children }: AuthGuardProps) {
         if (pathname === "/setup-toko") {
           if (storeId) {
             // Jika sudah punya toko tapi maksa ke setup-toko, lempar ke dashboard
-            router.replace("/");
+            router.replace("/dashboard");
             return;
           }
         } else {

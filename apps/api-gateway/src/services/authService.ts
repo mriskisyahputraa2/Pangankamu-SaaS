@@ -99,6 +99,24 @@ export const authService = {
       store,
     };
   },
+
+  // Get store profile untuk current user
+  async getStoreProfile(userId: string) {
+    const { data: store, error } =
+      await storeRepository.getStoreByOwnerId(userId);
+
+    if (error || !store) {
+      throw new Error("Store not found for this user");
+    }
+
+    return {
+      id: store.id,
+      name: store.name,
+      slug: store.slug,
+      owner_id: store.owner_id,
+      created_at: store.created_at,
+    };
+  },
 };
 
 export default authService;
