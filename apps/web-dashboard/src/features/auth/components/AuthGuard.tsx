@@ -27,7 +27,6 @@ export default function AuthGuard({ children }: AuthGuardProps) {
         setLoading(false);
         return;
       }
-      //
 
       // 2. Validasi sesi langsung ke Supabase (bukan hanya cek localStorage)
       //    Ini memastikan user yang dihapus/token expired langsung di-redirect ke login
