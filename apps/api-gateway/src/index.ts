@@ -7,6 +7,7 @@ import type { User } from "@supabase/supabase-js";
 // Import Routes
 import productRoute from "./routes/product.js";
 import categoryRoute from "./routes/category.js";
+import orderRoute from "./routes/order.js";
 import auth from "./routes/auth.js";
 
 // Import Middleware
@@ -65,6 +66,7 @@ app.get("/admin/dashboard", requireAuth, requireRole(["super_admin"]), (c) => {
 app.route("/auth", auth);
 app.route("/categories", categoryRoute);
 app.route("/products", productRoute);
+app.route("/orders", orderRoute);
 
 // Start Server
 serve({ fetch: app.fetch, port: 3000 }, (info) => {
