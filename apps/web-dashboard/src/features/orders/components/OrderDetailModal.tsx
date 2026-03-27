@@ -7,6 +7,41 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
+
+// Komponen countdown timer
+function CountdownTimer({ expiresAt }: { expiresAt: string }) {
+  const [remaining, setRemaining] = useState("");
+  const [isUrgent, setIsUrgent] = useState(false);
+
+  useEffect(() => {
+    const update = () => {
+      const diff = new Date(expiresAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setRemaining("Kadaluarsa");
+        return;
+      }
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      setIsUrgent(minutes < 5);
+      setRemaining(`${minutes}m ${seconds.toString().padStart(2, "0")}s`);
+    };
+
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  return (
+    <span
+      className={`font-mono font-bold text-sm ${
+        isUrgent ? "text-red-600 animate-pulse" : "text-yellow-600"
+      }`}
+    >
+      ⏱ {remaining}
+    </span>
+  );
+}
 
 interface OrderDetailModalProps {
   order: Order | null;
@@ -96,6 +131,23 @@ export function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
               <span className="text-emerald-600">
                 {formatDate(order.paid_at)}
               </span>
+            </div>
+          )}
+          {order.expires_at && (order.status === "pending" || order.status === "expired") && (
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500">
+                {order.status === "expired" ? "Kadaluarsa pada" : "Batas waktu bayar"}
+              </span>
+              <div className="text-right">
+                <span className={order.status === "expired" ? "text-red-500 text-sm" : "text-yellow-600 text-sm"}>
+                  {formatDate(order.expires_at)}
+                </span>
+                {order.status === "pending" && (
+                  <div className="mt-0.5">
+                    <CountdownTimer expiresAt={order.expires_at} />
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

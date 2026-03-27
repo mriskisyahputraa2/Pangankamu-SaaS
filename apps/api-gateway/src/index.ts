@@ -10,6 +10,9 @@ import categoryRoute from "./routes/category.js";
 import orderRoute from "./routes/order.js";
 import auth from "./routes/auth.js";
 
+// Import Jobs
+import { startExpireOrdersJob } from "./jobs/expireOrdersJob.js";
+
 // Import Middleware
 import { requireAuth, requireRole } from "./middleware/authMiddleware.js";
 import { sendResponse } from "./utils/response.js";
@@ -71,4 +74,7 @@ app.route("/orders", orderRoute);
 // Start Server
 serve({ fetch: app.fetch, port: 3000 }, (info) => {
   console.log(`Server is running on http://localhost:${info.port}`);
+
+  // Start background jobs
+  startExpireOrdersJob();
 });
