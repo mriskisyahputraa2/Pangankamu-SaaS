@@ -18,6 +18,7 @@ export const orderRepository = {
         `*, order_items (
           id,
           product_name,
+          price_base_snapshot,
           price_sell_snapshot,
           quantity,
           subtotal
