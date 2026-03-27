@@ -14,6 +14,16 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Eye, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { OrderDetailModal } from "./OrderDetailModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const STATUS_CONFIG: Record<
   OrderStatus,
@@ -55,6 +65,18 @@ export function OrderTable({
   onStatusUpdate,
 }: OrderTableProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [pendingAction, setPendingAction] = useState<{
+    orderId: string;
+    customerName: string;
+    action: "paid" | "cancelled";
+  } | null>(null);
+
+  const confirmAction = () => {
+    if (pendingAction) {
+      onStatusUpdate(pendingAction.orderId, pendingAction.action);
+      setPendingAction(null);
+    }
+  };
 
   const formatCurrency = (amount: number) =>
     `Rp ${amount.toLocaleString("id-ID")}`;
@@ -214,11 +236,17 @@ export function OrderTable({
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 bg-emerald-50 hover:bg-emerald-100 text-emerald-600"
-                            onClick={() => onStatusUpdate(order.id, "paid")}
+                            onClick={() =>
+                              setPendingAction({
+                                orderId: order.id,
+                                customerName: order.customer_name,
+                                action: "paid",
+                              })
+                            }
                             disabled={isUpdating}
                             title="Tandai Lunas"
                           >
-                            {isUpdating ? (
+                            {isUpdating && updatingId === order.id ? (
                               <Loader2 size={14} className="animate-spin" />
                             ) : (
                               <CheckCircle size={14} />
@@ -232,7 +260,13 @@ export function OrderTable({
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 bg-red-50 hover:bg-red-100 text-red-600"
-                            onClick={() => onStatusUpdate(order.id, "cancelled")}
+                            onClick={() =>
+                              setPendingAction({
+                                orderId: order.id,
+                                customerName: order.customer_name,
+                                action: "cancelled",
+                              })
+                            }
                             disabled={isUpdating}
                             title="Batalkan Pesanan"
                           >
@@ -254,6 +288,52 @@ export function OrderTable({
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}
       />
+
+      {/* Konfirmasi Dialog */}
+      <AlertDialog
+        open={!!pendingAction}
+        onOpenChange={(open) => !open && setPendingAction(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingAction?.action === "paid"
+                ? "✅ Tandai Pesanan Lunas?"
+                : "❌ Batalkan Pesanan?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingAction?.action === "paid" ? (
+                <>
+                  Pesanan dari{" "}
+                  <span className="font-semibold text-slate-800">
+                    {pendingAction?.customerName}
+                  </span>{" "}
+                  akan ditandai sebagai <strong>lunas</strong> dan tidak dapat dikembalikan.
+                </>
+              ) : (
+                <>
+                  Pesanan dari{" "}
+                  <span className="font-semibold text-slate-800">
+                    {pendingAction?.customerName}
+                  </span>{" "}
+                  akan dibatalkan dan <strong>stok produk akan dikembalikan</strong>.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Tidak, kembali</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmAction}
+              className={pendingAction?.action === "paid"
+                ? "bg-emerald-600 hover:bg-emerald-700"
+                : "bg-red-600 hover:bg-red-700"}
+            >
+              {pendingAction?.action === "paid" ? "Ya, tandai lunas" : "Ya, batalkan"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
